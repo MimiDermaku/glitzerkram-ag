@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h2>Login</h2>
+    <form method="POST">
+      <label for="username">Nutzername</label>
+      <input id="username" name="username" type="text" required autofocus>
+
+      <label for="password">Passwort</label>
+      <input id="password" name="password" type="password" required>
+
+      <button class="primary" type="submit">Anmelden</button>
+    </form>
+    {% if error %}<p class="err">{{ error }}</p>{% endif %}
+    <p class="muted">Demo: chef/secret123 (admin), mimi/geheim123 (user)</p>
+  </div>
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="page">
+    <h2 class="slogan-font box-heading">Offene Tickets</h2>
+
+    {% if tickets %}
+      <div class="grid" style="display:grid; gap:1rem;">
+        {% for t in tickets %}
+          <div class="box">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+              <div>
+                <div><strong>User:</strong> {{ t.username|capitalize }}</div>
+                <div><strong>Aktion:</strong> {{ t.action }}</div>
+                <div class="muted"><strong>Erstellt:</strong> {{ t.local_created_at }}</div>
+                {% if t.note %}<div class="muted"><strong>Notiz:</strong> {{ t.note }}</div>{% endif %}
+                {% if t.ticket_action %}<div><strong>Wunsch:</strong> {{ 'ändern' if t.ticket_action == 'aendern' else 'löschen' }}</div>{% endif %}
+                {% if t.ticket_message %}<div class="muted"><strong>Begründung:</strong> {{ t.ticket_message }}</div>{% endif %}
+              </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin_resolve', booking_id=t.id) }}" style="margin-top:.8rem;">
+              <div style="display:grid; gap:.6rem; grid-template-columns: 1fr;">
+
+                <!-- Auflösung wählen -->
+                <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+                  <label><input type="radio" name="resolution" value="aendern" {% if t.ticket_action=='aendern' %}checked{% endif %}> ändern</label>
+                  <label><input type="radio" name="resolution" value="loeschen" {% if t.ticket_action=='loeschen' %}checked{% endif %}> löschen</label>
+                  <label><input type="radio" name="resolution" value="schliessen" {% if not t.ticket_action %}checked{% endif %}> nur schließen</label>
+                </div>
+
+                <!-- Neue Aktion (nur bei 'ändern') -->
+                <div id="actwrap-{{ t.id }}" style="display:none;">
+                  <label for="new_action_{{ t.id }}"><strong>Neue Aktion</strong></label>
+                  <select id="new_action_{{ t.id }}" name="new_action">
+                    {% for key, label in actions %}
+                      <option value="{{ key }}" {% if key==t.action %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+
+                <!-- Admin-Kommentar -->
+                <div>
+                  <label for="admin_comment_{{ t.id }}"><strong>Admin-Kommentar (optional)</strong></label>
+                  <input id="admin_comment_{{ t.id }}" name="admin_comment" type="text" placeholder="z. B. offensichtlicher Vertipper, angepasst">
+                </div>
+
+                <!-- Submit -->
+                <div style="display:flex; gap:.6rem; flex-wrap:wrap;">
+                  <button type="submit" class="btn btn-blaugrau">Übernehmen</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="box"><p class="muted">Keine offenen Tickets. 🎉</p></div>
+    {% endif %}
+  </div>
+
+  <script>
+    // Radio -> "Neue Aktion"-Dropdown ein-/ausblenden
+    document.addEventListener('change', function(e){
+      if(e.target.name === 'resolution'){
+        const form = e.target.closest('form');
+        const wrap = form.querySelector('[id^="actwrap-"]');
+        if(!wrap) return;
+        wrap.style.display = (e.target.value === 'aendern') ? 'block' : 'none';
+      }
+    });
+    // Beim Laden initial sichtbar machen, wenn „ändern“ vorausgewählt ist
+    document.querySelectorAll('form').forEach(form => {
+      const checked = form.querySelector('input[name="resolution"]:checked');
+      const wrap = form.querySelector('[id^="actwrap-"]');
+      if(checked && wrap){ wrap.style.display = (checked.value === 'aendern') ? 'block' : 'none'; }
+    });
+  </script>
+{% endblock %}

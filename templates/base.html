@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>{{ title or "App" }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=reset1">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=topbar4">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600&display=swap" rel="stylesheet">
+
+<style>
+  /* Topbar immer lesbar auf dunklem BG */
+  .topbar{ 
+    position: fixed; top:0; left:0; right:0; z-index:2000;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    padding: .8rem 24px;
+  }
+  /* ALLES in der Topbar weiß (übersteuert externe CSS) */
+  .topbar, .topbar * { color:#fff !important; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  .topbar a { text-decoration: none; }
+  .topbar a:hover { text-decoration: underline; }
+</style>
+
+</head>
+<body>
+<div class="topbar">
+  <div class="brand" style="display:flex; flex-direction:column; gap:.2rem; max-width:60%;">
+     <img src="{{ url_for('static', filename='logo.png') }}" alt="Glitzerkram AG Logo" style="display:block; object-fit:contain;">
+    <div class="slogan"
+         style="font-family:'Dancing Script', system-ui, cursive; font-size:2rem; line-height:2; color:#fff;">
+      Einloggen. Buchen. Glitzern.
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    {% if session.get('username') %}
+      {% set role_label = 'Chef' if session.role == 'admin' else 'User' %}
+      Angemeldet als <strong>{{ session.username|capitalize }}</strong> ({{ role_label }}) |
+      <a class="link" href="{{ url_for('logout') }}">Logout</a>
+    {% endif %}
+  </div>
+</div>
+
+
+
+
+
+    {% if session.get('username') %}
+      {% set role_label = 'Chef' if session.role == 'admin' else 'User' %}
+      Angemeldet als <strong>{{ session.username|capitalize }}</strong> ({{ role_label }}) |
+    {% endif %}
+  </div>
+</div>
+
+
+  {% block content %}{% endblock %}
+</body>
+</html>

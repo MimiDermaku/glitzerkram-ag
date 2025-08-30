@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="card">
+    <h3>Kein Zugriff</h3>
+    <p class="err">Du bist eingeloggt, aber hast nicht die nötige Rolle für diese Seite.</p>
+    <p><a class="link" href="{{ url_for('dashboard') }}">Zurück zum Dashboard</a></p>
+  </div>
+{% endblock %}
