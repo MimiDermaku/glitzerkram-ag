@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block slogan %}Einloggen. Kontrollieren. Glitzern.{% endblock %}
+{% block content %}
+<div class="page">
+  <!-- Spacer: schiebt die Überschrift + Tabelle ein Stück nach unten -->
+  <div style="height:20px;"></div>
+
+  <div class="d-flex justify-content-between align-items-center mb-3 presence-strip">
+    <h1 class="h4 mb-0">Wer ist da?</h1>
+    <div class="small text-muted">
+      Live-Update <span class="ms-1">⟲</span>
+      <span class="ms-1">(<span id="presence-updated">—</span>)</span>
+    </div>
+    <!-- Zurück zum ADMIN-Dashboard -->
+    <a href="{{ url_for('admin_only') }}" class="btn btn-secondary">← Zurück zum Admin-Dashboard</a>
+  </div>
+
+  {% set is_empty = (count == 0) %}
+
+  <!-- Hinweis "niemand anwesend" -->
+  <div id="presence-empty" class="alert alert-info" {% if not is_empty %}style="display:none"{% endif %}>
+    Aktuell ist niemand anwesend.
+  </div>
+
+  <!-- Kopf mit Count -->
+  <div id="presence-head" class="mb-2 muted" {% if is_empty %}style="display:none"{% endif %}>
+    Anwesend: <strong id="presence-count">{{ count }}</strong>
+  </div>
+
+  <!-- Tabelle -->
+  <div class="table-responsive" id="presence-table-wrap" {% if is_empty %}style="display:none"{% endif %}>
+    <table class="table table-sm table-striped align-middle">
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Aktueller Status</th>
+          <th>Seit</th>
+          <th>Letzte Aktion</th>
+        </tr>
+      </thead>
+      <tbody id="presence-tbody">
+        {% for p in present %}
+        <tr>
+          <td>{{ p.username|capitalize }}</td>
+          <td>{{ p.last_action_label }}</td>
+          <td>{{ p.since_local or '—' }}</td>
+          <td>{{ p.last_action_local or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Sanfter Auto-Refresh (pollt /presence.json, kein Seiten-Reload) -->
+<script>
+(function () {
+  const INTERVAL_MS = 15000; // alle 15s
+  const URL_JSON = "{{ url_for('presence_json') }}";
+
+  const elCount   = document.getElementById('presence-count');
+  const elUpdated = document.getElementById('presence-updated');
+  const elEmpty   = document.getElementById('presence-empty');
+  const elHead    = document.getElementById('presence-head');
+  const elWrap    = document.getElementById('presence-table-wrap');
+  const elBody    = document.getElementById('presence-tbody');
+
+  function cap(s) {
+    return (s && s.length) ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  }
+
+  function showEmpty() {
+    if (elBody) elBody.innerHTML = "";
+    if (elWrap) elWrap.style.display = "none";
+    if (elHead) elHead.style.display = "none";
+    if (elEmpty) elEmpty.style.display = "";
+  }
+
+  function showTable() {
+    if (elWrap) elWrap.style.display = "";
+    if (elHead) elHead.style.display = "";
+    if (elEmpty) elEmpty.style.display = "none";
+  }
+
+  async function refreshPresence() {
+    try {
+      const res = await fetch(URL_JSON, { cache: 'no-store', headers: { 'Accept': 'application/json' }});
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+
+      const list = Array.isArray(data.present) ? data.present : [];
+      const cnt  = (typeof data.count === 'number') ? data.count : list.length;
+
+      if (elCount)  elCount.textContent  = String(cnt);
+      if (elUpdated) elUpdated.textContent = data.server_time || new Date().toLocaleString();
+
+      if (!list.length) {
+        showEmpty();
+        return;
+      }
+
+      // Zeilen aufbauen
+      const rowsHtml = list.map(p => `
+        <tr>
+          <td>${cap(p.username || '')}</td>
+          <td>${p.last_action_label || '—'}</td>
+          <td>${p.since_local || '—'}</td>
+          <td>${p.last_action_local || '—'}</td>
+        </tr>
+      `).join('');
+      if (elBody) elBody.innerHTML = rowsHtml;
+      showTable();
+    } catch (e) {
+      // Leise degradieren; bei Fehlern nichts umschalten
+      console.warn('presence refresh failed:', e);
+    }
+  }
+
+  // initial + Intervall
+  refreshPresence();
+  setInterval(refreshPresence, INTERVAL_MS);
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,519 @@
+/* --- Farben & Basis --- */
+:root{
+  --frame-color: #f7b6cf;       /* Rahmen & Akzent */
+  --frame-glow: rgba(247,182,207,.55);
+  --accent: var(--frame-color);
+}
+
+html, body { height:100%; }
+html{
+  /* HINTERGRUND: Bild MUSS unter /static/bg.jpg liegen */
+  background: url("/static/bg.jpg") center / cover no-repeat fixed;
+}
+
+body{
+  margin: 0;
+  font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  color: #222;
+  background: transparent;    /* damit html-Bild sichtbar ist */
+  position: relative;
+  padding: 88px 24px 24px; /* oben Platz für die fixe Topbar */
+  box-sizing: border-box;
+}
+
+
+/* Fixe, transparente Topbar */
+.topbar{
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 2000;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .8rem 24px;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  border-bottom: none !important;
+}
+
+
+/* ---------- Grundlayout ---------- */
+.page { max-width:1100px; margin:0 auto; }
+.two-col{
+  display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; align-items:start;
+}
+@media (max-width: 900px){ .two-col{ grid-template-columns:1fr; } }
+
+.section-sep { border-top:2px solid #eee; margin:1.4rem 0; }
+
+.box{
+  padding:1.2rem;
+  border:1.5px solid #d0d7de;
+  border-radius:12px;
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 6px 24px rgba(0,0,0,.06);
+}
+
+/* ---------- Text & Links ---------- */
+.muted{ color:#666; }
+.ok{ color:#2e7d32; }
+.err{ color:#c62828; }
+a.link{ color:#a83f72; text-decoration:none; }
+a.link:hover{ text-decoration:underline; }
+
+/* ---------- Buttons ---------- */
+button{ border:0; border-radius:10px; padding:.7rem 1rem; cursor:pointer; }
+.primary{ background: var(--accent); color:#fff; }
+.primary:hover{ filter:brightness(1.05); }
+.danger{ background:#b23a48; color:#fff; }
+.danger:hover{ filter:brightness(1.05); }
+
+/* ---------- Kalender ---------- */
+.calendar-wrap, .daylist-wrap { max-width:none; width:100%; margin:0; }
+.calendar-nav{ display:flex; justify-content:space-between; align-items:center; margin-bottom:.4rem; }
+.grid-7{ display:grid; grid-template-columns:repeat(7,1fr); gap:.6rem; }
+.calendar-head{ margin-top:.6rem; font-size:1rem; color:#666; }
+.calendar-grid{ margin-top:.25rem; }
+
+.calendar-tile{
+  display:block; text-decoration:none; text-align:center;
+  border:1.5px solid #ddd; border-radius:12px;
+  padding:.9rem .6rem;
+}  /* <-- fehlende Klammer ergänzt */
+
+/* Topbar auf dunklem Hintergrund: weiße Schrift */
+.topbar,
+.topbar a,
+.topbar strong {
+  color: #fff !important;
+}
+
+/* Links in der Topbar: weiß, dezentes Hover */
+.topbar a.link {
+  color: #fff !important;
+  text-decoration: none;
+  opacity: .95;
+}
+.topbar a.link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* Slogan leicht abgetönt */
+.topbar .slogan { color: #dddddd !important; }
+
+/* Optional: leichte Kontur für bessere Lesbarkeit auf sehr dunklem BG */
+.topbar { text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+
+/* Brand-Styles im Topper */
+
+.brand{
+  display:flex;
+  flex-direction: column;   /* <— neu */
+  align-items: flex-start;  /* <— neu */
+  gap: 6px;                 /* <— etwas Luft zwischen Logo & Slogan */
+}
+
+.brand-logo img{
+  height: 50px;              /* Logo dezent klein */
+  display: block;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); /* subtile Lesbarkeit */
+}
+.slogan{
+  font-family: "Dancing Script", system-ui, cursive;
+  font-size: 2rem;
+  line-height: 2;
+  letter-spacing: .2px;
+  color: #fff;                /* weiß auf dunklem Topper-Hintergrund */
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+  margin-top: .1rem;
+}
+
+/* Sicherstellen, dass Topbar-Text weiß bleibt */
+.topbar, .topbar *{
+  color: #fff !important;
+}
+
+/* Erzwinge kleine Logo-Höhe in der Topbar, falls andere Regeln dazwischenfunken */
+.topbar .brand img { height:32px !important; max-height:32px !important; width:auto !important; }
+/* Slogan sicher anzeigen (weiß, klein) */
+.topbar .slogan { color:#fff !important; font-size:2rem !important; line-height:2 !important; }
+/* Topbar bleibt fix oben; gib dem Inhalt genug Luft darunter */
+body { padding-top: 96px; }
+
+:root { --logo-h: 100px; }    /* Desktop-Logo-Höhe */
+.topbar .brand img { height: var(--logo-h) !important; max-height: var(--logo-h) !important; width:auto !important; }
+body { padding-top: calc(var(--logo-h) + 56px); }  /* Abstand unter fixer Topbar */
+
+@media (max-width: 600px){
+  :root { --logo-h: 30px; }  /* mobil kleiner */
+}
+/* Rechtsblock in der Topbar */
+.topbar{ display:flex; align-items:center; gap:16px; }
+.topbar-right{
+  margin-left: auto;         /* schiebt nach rechts */
+  white-space: nowrap;       /* alles in einer Zeile behalten */
+  text-align: right;
+}
+
+/* Sicherheit: weiße Schrift in der Topbar */
+.topbar, .topbar *{ color:#fff !important; }
+
+/* Falls das Logo breiter wird, reserviere etwas Platz rechts */
+@media (min-width: 901px){
+  .brand{ max-width: 70%; }
+}
+
+/* Begrüßung wie der Slogan – groß + Pastell-Verlauf */
+.greeting{
+  /* gleiche Schrift wie der Slogan */
+  font-family: "Dancing Script", system-ui, cursive;
+  font-weight: 600;
+  /* ungefähr doppelt so groß wie bisheriger Body-Text */
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  line-height: 1.1;
+  margin: 0 0 .4rem 0;
+
+  /* Pastell-Verlauf: Rosa -> Blaugrau (wie im Logo) */
+  background: linear-gradient(90deg, #f7b6cf 0%, #9fb1c5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;                 /* Standard */
+  -webkit-text-fill-color: transparent; /* Safari/WebKit */
+}
+
+/* Unterzeile neutral */
+.intro-sub{
+  color: #9fb1c5;        /* blaugrau wie im Logo */
+  font-size: 1.125rem;   /* eine Nummer größer (~18px) */
+  line-height: 1.35;
+  font-weight: 500;
+  margin: 0 0 1rem 0;
+}
+
+/* Logo-Größe zentral */
+:root { --logo-h: 210px; }               /* <- HIER gewünschte Höhe einstellen */
+
+.topbar .brand img{
+  height: var(--logo-h) !important;
+  max-height: var(--logo-h) !important;
+  width: auto !important;
+}
+
+/* Abstand unter fixer Topbar passt sich automatisch an */
+body{
+  padding-top: calc(var(--logo-h) + 56px) !important;
+}
+
+/* Mobil kleiner */
+@media (max-width: 600px){
+  :root { --logo-h: 38px; }
+}
+
+/* 1) Boxen rechnen mit border (verhindert Überstand) */
+.box { box-sizing: border-box; }
+
+/* 2) (lassen wir so) Kalender & Tagesliste füllen die Seitenbreite der .page */
+.calendar-wrap, .daylist-wrap { width: 100%; max-width: none; margin: 0; }
+
+/* kleines Icon hinter dem Namen */
+.greeting{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;              /* Abstand zwischen Name und Icon */
+}
+.greet-ico{
+  height: 60px;          /* Größe des Bildchens */
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.2)); /* dezent */
+}
+
+@media (max-width: 600px){
+  .greet-ico{ height: 20px; }
+}
+
+/* Blaugrau wie der Begrüßungstext */
+:root { --blaugrau: #9fb1c5; }  /* falls noch nicht vorhanden */
+.day-num { color: var(--blaugrau) !important; }
+
+/* Datum: blaugrau, fetter, größer */
+:root { --blaugrau: #9fb1c5; } /* falls noch nicht vorhanden */
+.day-num{
+  color: var(--blaugrau) !important;
+  font-weight: 500 !important;       /* extra fett */
+  font-size: 1.3rem !important;      /* eine Stufe größer (vorher ~1.15rem) */
+  line-height: 1.1;
+}
+
+/* Mobil minimal zurücknehmen, damit nichts überläuft */
+@media (max-width: 600px){
+  .day-num{ font-size: 1.2rem !important; }
+}
+
+/* Hi-Mimi-Rosa für "heute" */
+:root { --rose: #f7b6cf; } /* gleiche Rose wie im Greeting */
+
+.calendar-tile--today{
+  background: rgba(247,182,207,.28);   /* zartes Rose-Fill */
+  border-color: var(--rose);
+}
+
+/* Falls "selected" UND "today": leicht stärker wirken lassen */
+.calendar-tile--selected.calendar-tile--today{
+  background: rgba(247,182,207,.38);
+  border-color: var(--rose);
+}
+
+/* Pastell-Varianten */
+:root{
+  --accent: #eec6d7;   /* Pastellrosa für Buttons */
+  --box-bg: #f7f7f9;   /* dezentes Grau für Boxen */
+}
+
+/* Buttons */
+.primary{
+  background: var(--accent) !important;
+  color: #fff !important;
+  border: 0;
+}
+.primary:hover{ filter: brightness(1.06); }
+
+/* Boxen */
+.box{
+  background: var(--box-bg) !important;
+  border-color: #e3e5ea !important;
+}
+
+:root{ --rose: #f7b6cf; }
+.calendar-tile--today{
+  background: rgba(247,182,207,.28);
+  border-color: var(--rose);
+}
+.calendar-tile--selected.calendar-tile--today{
+  background: rgba(247,182,207,.38);
+}
+
+:root{
+  --rose: #f7b6cf;      /* Rosa wie Greeting/Heute */
+  --blaugrau: #9fb1c5;  /* Blaugrau wie Kalenderzahlen */
+}
+
+/* generische Button-Basisklasse */
+.btn{ border:0; border-radius:10px; padding:.6rem .9rem; cursor:pointer; font:inherit; }
+
+/* Ticket eröffnen = Rosa */
+.btn-rose{
+  background: var(--rose);
+  color: #fff;
+}
+.btn-rose:hover{ filter: brightness(1.06); }
+
+/* Ticket schließen = Blaugrau */
+.btn-blaugrau{
+  background: var(--blaugrau);
+  color: #fff;
+}
+.btn-blaugrau:hover{ filter: brightness(1.06); }
+
+/* gleiche Farben wie Greeting */
+:root{
+  --rose: #f7b6cf;      /* Hi-Mimi-Rosa */
+  --blaugrau: #9fb1c5;  /* Kalender-Blaugrau */
+}
+
+/* Basis */
+.btn{ border:0; border-radius:10px; padding:.6rem .9rem; cursor:pointer; font:inherit; }
+
+/* Ticket eröffnen = exakt Hi-Mimi-Rosa */
+.btn-rose{
+  background: var(--rose) !important;
+  color: #fff !important;
+  border: 0 !important;
+}
+.btn-rose:hover{ filter: brightness(1.06); }
+
+/* Ticket schließen = Blaugrau */
+.btn-blaugrau{
+  background: var(--blaugrau) !important;
+  color: #fff !important;
+  border: 0 !important;
+}
+.btn-blaugrau:hover{ filter: brightness(1.06); }
+
+.btn-rose{
+  background: linear-gradient(90deg, #f7b6cf 0%, #f4c3d4 100%) !important;
+  color:#fff !important;
+}
+
+/* Überschriften im Slogan-Stil */
+.slogan-font{
+  font-family: "Dancing Script", system-ui, cursive;
+  font-weight: 600;
+  font-size: 1.4rem;     /* bei Bedarf größer/kleiner machen */
+  line-height: 1.1;
+  margin: 0 0 .6rem 0;
+}
+
+.day-heading-date{
+  color: var(--blaugrau, #9fb1c5);   /* blaugrau wie gewünscht */
+  font-weight: 600;                  /* leicht betonen */
+}
+
+/* Sehr leichtes Grau für Box-Hintergründe */
+:root{
+  --box-bg: #f2f3f5;   /* alternativ noch heller: #f7f7f9 oder #fafafa */
+}
+
+.box{
+  background: var(--box-bg) !important;
+  border-color: #e8e9ee !important;   /* dezente, helle Kante */
+  box-shadow: 0 6px 18px rgba(0,0,0,.04); /* optional: sanfter Lift */
+}
+
+/* Erzwinge Bootstrap-5-Primary-Blau */
+.btn-primary{
+  background-color:#9fb1c5 !important;
+  border-color:#9fb1c5 !important;
+  color:#fff !important;
+}
+.btn-primary:hover{ background-color:#0b5ed7 !important; border-color:#0a58ca !important; }
+
+/* Flags global dezenter (statt knallgelb) */
+.badge.text-bg-warning,
+.text-bg-warning {
+  background-color: #adb5bd !important;   /* neutrales Grau */
+  color: #212529 !important;
+  border-color: #adb5bd !important;
+}
+
+.bg-warning-subtle,
+.badge.bg-warning-subtle {
+  background-color: #e9ecef !important;   /* sehr helles Grau */
+  color: #495057 !important;
+}
+
+/* Optional: einheitlicher, kleinerer Pill-Stil für alle Flag-Badges */
+.badge {
+  font-size: .8rem;
+  padding: .35em .6em;
+  border-radius: 9999px;
+}
+
+/* === OVERRIDES: Topper hinter Content + Buttons/Badges === */
+
+/* Content-Ebene über den Topper */
+#content, .content, .page, main, .container {
+  position: relative;
+  z-index: 2;              /* über .topbar (die hat z-index:1) */
+}
+
+/* Falls vorher irgendwo großer Padding-Top gesetzt war:
+   Wir reduzieren das, weil der Topper nun HINTER dem Content ist */
+body { padding-top: 24px !important; }
+
+/* Sicherheit: Topbar bleibt hinter dem Content */
+.topbar { z-index: 1 !important; }
+
+/* Bootstrap-Primary wieder blau */
+.btn-primary{
+  background-color:#0d6efd !important;
+  border-color:#0d6efd !important;
+  color:#fff !important;
+}
+.btn-primary:hover{
+  background-color:#0b5ed7 !important;
+  border-color:#0a58ca !important;
+}
+
+/* Flags global dezenter (grau statt gelb) – wie besprochen */
+.badge.text-bg-warning,
+.text-bg-warning {
+  background-color: #adb5bd !important;
+  color: #212529 !important;
+  border-color: #adb5bd !important;
+}
+.bg-warning-subtle,
+.badge.bg-warning-subtle {
+  background-color: #e9ecef !important;
+  color: #495057 !important;
+}
+.badge {
+  font-size: .8rem;
+  padding: .35em .6em;
+  border-radius: 9999px;
+}
+
+/* Globaler Abstand oben für den Seiten-Content */
+:root { --content-top-gap: 250px; }            /* ↑ hier Zahl anpassen (z.B. 64, 80, 96) */
+#content, .page, main.container, .container {
+  margin-top: var(--content-top-gap);
+}
+
+/* mobil etwas knapper */
+@media (max-width: 600px){
+  :root { --content-top-gap: 56px; }
+}
+
+/* === Reports Toolbar Styling === */
+form#reportForm {
+  background: rgba(255,255,255,.92);  /* halbtransparentes Weiß */
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,.08);
+}
+
+/* === Reports: Primary Button anpassen (Blaugrau statt Standardblau) === */
+.btn-primary {
+  background-color: var(--blaugrau) !important;
+  border-color: var(--blaugrau) !important;
+  color: #fff !important;
+}
+.btn-primary:hover,
+.btn-primary:focus {
+  background-color: #8899aa !important;  /* etwas dunkleres Blaugrau beim Hover */
+  border-color: #8899aa !important;
+}
+
+/* Offene Tickets (weiß + größer) */
+.open-tickets-title { color:#fff; font-size:1.5rem; }
+
+/* === Presence: NUR Text weiß; Überschrift im Offene-Tickets-Stil === */
+.presence-strip{
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0; /* kein zusätzlicher Rand */
+}
+
+/* gesamte Zeile weiß einfärben (nur Text) */
+.presence-strip,
+.presence-strip *{
+  color: #fff !important;
+}
+
+/* „Wer ist da?“ im gleichen Schrifttyp/Look wie Offene Tickets */
+.presence-strip h1,
+.presence-strip .h1,
+.presence-strip .h4{
+  font-family: "Dancing Script", system-ui, cursive;
+  font-weight: 600;
+  font-size: 1.5rem;   /* gleiche Größe wie .open-tickets-title */
+  line-height: 1.1;
+  margin: 0;
+}
+
+/* die kleine Live-Update-Zeile explizit weiß halten */
+.presence-strip .text-muted{
+  color: #fff !important;
+  opacity: .95;
+}
+
+/* Presence: Kopfzeile nur Text weiß + leicht nach unten geschoben */
+.presence-strip,
+.presence-strip * { color:#fff !important; }
+.presence-strip { margin-top: 8px; } /* bei Bedarf 8–16px anpassen */
+
+/* Reports: Kopfzeile nur Text weiß */
+.reports-strip,
+.reports-strip * { color:#fff !important; }

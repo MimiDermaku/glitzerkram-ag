@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block slogan %}Einloggen. Kontrollieren. Glitzern.{% endblock %}
+{% block content %}
+  <div class="page">
+
+    <!-- Kopf: Buttons rechts; Reihenfolge: Chef buchen, Wer ist da?, Reports, Tagebücher, Benutzer -->
+    <div class="d-flex justify-content-end align-items-center mb-3">
+      <div class="btn-toolbar gap-2">
+        <a href="{{ url_for('user_only') }}" class="btn btn-blaugrau">Chef buchen</a>
+        <a href="{{ url_for('presence') }}" class="btn btn-primary">Wer ist da?</a>
+        <a href="{{ url_for('admin_reports') }}" class="btn btn-blaugrau">Reports öffnen</a>
+        <a href="{{ url_for('admin_journal') }}" class="btn btn-blaugrau">Tagebücher</a>
+        <a href="{{ url_for('admin_users') }}" class="btn btn-blaugrau">Benutzer</a>
+      </div>
+    </div>
+
+    <h2 class="slogan-font box-heading open-tickets-title">Offene Tickets</h2>
+
+    {% if tickets %}
+      <div class="grid" style="display:grid; gap:1rem;">
+        {% for t in tickets %}
+          <div class="box">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap;">
+              <div>
+                <div><strong>User:</strong> {{ t.username|capitalize }}</div>
+                <div><strong>Aktion:</strong> {{ t.action }}</div>
+                <div class="muted"><strong>Erstellt:</strong> {{ t.local_created_at }}</div>
+                {% if t.note %}<div class="muted"><strong>Notiz:</strong> {{ t.note }}</div>{% endif %}
+                {% if t.ticket_action %}<div><strong>Wunsch:</strong> {{ 'ändern' if t.ticket_action == 'aendern' else 'löschen' }}</div>{% endif %}
+                {% if t.ticket_message %}<div class="muted"><strong>Begründung:</strong> {{ t.ticket_message }}</div>{% endif %}
+              </div>
+            </div>
+
+            <form method="POST" action="{{ url_for('admin_resolve', booking_id=t.id) }}" style="margin-top:.8rem;">
+              <div style="display:grid; gap:.6rem; grid-template-columns: 1fr;">
+
+                <!-- Auflösung wählen -->
+                <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+                  <label><input type="radio" name="resolution" value="aendern" {% if t.ticket_action=='aendern' %}checked{% endif %}> ändern</label>
+                  <label><input type="radio" name="resolution" value="loeschen" {% if t.ticket_action=='loeschen' %}checked{% endif %}> löschen</label>
+                  <label><input type="radio" name="resolution" value="schliessen" {% if not t.ticket_action %}checked{% endif %}> nur schließen</label>
+                </div>
+
+                <!-- Edit-Felder (nur bei 'ändern') -->
+                <div id="actwrap-{{ t.id }}" style="display:none;">
+                  <!-- Neue Aktion -->
+                  <label for="new_action_{{ t.id }}"><strong>Neue Aktion</strong></label>
+                  <select id="new_action_{{ t.id }}" name="new_action">
+                    {% for key, label in actions %}
+                      <option value="{{ key }}" {% if key==t.action %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+
+                  <!-- Optional: Datum/Uhrzeit anpassen -->
+                  <div style="display:grid; gap:.5rem; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-top:.4rem;">
+                    <div>
+                      <label for="new_date_{{ t.id }}"><strong>Neues Datum</strong> <span class="muted">(optional)</span></label>
+                      <input id="new_date_{{ t.id }}" name="new_date" type="date" />
+                    </div>
+                    <div>
+                      <label for="new_time_{{ t.id }}"><strong>Neue Uhrzeit</strong> <span class="muted">(optional)</span></label>
+                      <input id="new_time_{{ t.id }}" name="new_time" type="time" />
+                    </div>
+                  </div>
+
+                  <!-- Optional: Notiz-/Textkorrektur -->
+                  <div style="margin-top:.4rem%;">
+                    <label for="new_note_{{ t.id }}"><strong>Neue Notiz / Korrektur</strong> <span class="muted">(optional)</span></label>
+                    <input id="new_note_{{ t.id }}" name="new_note" type="text" placeholder="Leer lassen = unverändert">
+                  </div>
+
+                  <div class="muted" style="margin-top:.2rem;">Leer lassen = unverändert. Nur ausgefüllte Felder werden übernommen.</div>
+                </div>
+
+                <!-- Admin-Kommentar -->
+                <div>
+                  <label for="admin_comment_{{ t.id }}"><strong>Admin-Kommentar (optional)</strong></label>
+                  <input id="admin_comment_{{ t.id }}" name="admin_comment" type="text" placeholder="z. B. offensichtlicher Vertipper, angepasst">
+                </div>
+
+                <!-- Submit -->
+                <div style="display:flex; gap:.6rem; flex-wrap:wrap;">
+                  <button type="submit" class="btn btn-blaugrau">Übernehmen</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="box"><p class="muted">Keine offenen Tickets. 🎉</p></div>
+    {% endif %}
+  </div>
+
+  <script>
+    // Radio -> "Editblock" ein-/ausblenden
+    document.addEventListener('change', function(e){
+      if(e.target.name === 'resolution'){
+        const form = e.target.closest('form');
+        const wrap = form.querySelector('[id^="actwrap-"]');
+        if(!wrap) return;
+        wrap.style.display = (e.target.value === 'aendern') ? 'block' : 'none';
+      }
+    });
+    // Beim Laden initial sichtbar machen, wenn „ändern“ vorausgewählt ist
+    document.querySelectorAll('form').forEach(form => {
+      const checked = form.querySelector('input[name="resolution"]:checked');
+      const wrap = form.querySelector('[id^="actwrap-"]');
+      if(checked && wrap){ wrap.style.display = (checked.value === 'aendern') ? 'block' : 'none'; }
+    });
+  </script>
+{% endblock %}

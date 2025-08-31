@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+
+  <!-- Kopfzeile -->
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <a href="{{ url_for(back_ep) }}" class="btn btn-secondary">← Zurück</a>
+    <h1 class="slogan-font box-heading" style="margin:0;">Benutzerverwaltung</h1>
+  </div>
+
+  <!-- Neuen Benutzer anlegen -->
+  <div class="box" style="margin-bottom:1rem;">
+    <h3 class="slogan-font box-heading" style="margin-top:0;">Neuen Benutzer anlegen</h3>
+    <form method="POST" action="{{ url_for('admin_users_create') }}" class="d-flex align-items-end" style="gap:1rem; flex-wrap:wrap;">
+      <div>
+        <label for="new_username"><strong>Username</strong></label>
+        <input id="new_username" name="username" type="text" required placeholder="z. B. mimi" autocomplete="off">
+      </div>
+      <div>
+        <label for="new_password"><strong>Passwort</strong></label>
+        <input id="new_password" name="password" type="password" required placeholder="mind. 6 Zeichen" autocomplete="new-password">
+      </div>
+      <div>
+        <label for="new_wm"><strong>Wochenminuten</strong> <span class="muted">(Standard 2400)</span></label>
+        <input id="new_wm" name="weekly_minutes" type="number" min="0" step="1" placeholder="2400">
+      </div>
+      <div>
+        <label for="new_role"><strong>Rolle</strong></label>
+        <select id="new_role" name="role">
+          <option value="user" selected>User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <div>
+        <button class="btn btn-primary" type="submit">Anlegen</button>
+      </div>
+    </form>
+    <p class="muted" style="margin:.4rem 0 0 0;">
+      Tipp: 2400 Minuten = 40 Std/Woche. (Die Umrechnung auf Tages-Soll passiert im Report.)
+    </p>
+  </div>
+
+  <!-- Bestehende Benutzer -->
+  <div class="box">
+    <h3 class="slogan-font box-heading" style="margin-top:0;">Bestehende Benutzer</h3>
+
+    {% if users and users|length > 0 %}
+      <div class="table-wrap">
+        <table class="table-users">
+          <thead>
+            <tr>
+              <th style="min-width:160px;">Username</th>
+              <th style="min-width:130px;">Rolle</th>
+              <th style="min-width:140px;">Wochenminuten</th>
+              <th style="min-width:220px;">Passwort (neu, optional)</th>
+              <th style="width:1%; white-space:nowrap;">Aktion</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+              <tr>
+                <td>
+                  <div style="font-weight:600;">{{ u.username }}</div>
+                  <div class="muted">ID: {{ u.id }}</div>
+                </td>
+                <td>
+                  <form method="POST" action="{{ url_for('admin_users_update', user_id=u.id) }}" class="inline-form user-update-form">
+                    <select name="role" class="w-100">
+                      <option value="user"  {% if u.role=='user' %}selected{% endif %}>User</option>
+                      <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Admin</option>
+                    </select>
+                </td>
+                <td>
+                    <input name="weekly_minutes" type="number" min="0" step="1" value="{{ u.weekly_minutes }}" class="w-100">
+                </td>
+                <td>
+                    <input name="password" type="password" placeholder="leer lassen = unverändert" autocomplete="new-password" class="w-100">
+                </td>
+                <td>
+                    <button type="submit" class="btn btn-blaugrau">Speichern</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="muted" style="margin-top:.6rem;">
+        Hinweis: Passwortfeld leer lassen, wenn es nicht geändert werden soll.
+      </p>
+    {% else %}
+      <p class="muted">Noch keine Benutzer vorhanden.</p>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  .table-wrap{ overflow:auto; }
+  .table-users{
+    width:100%;
+    border-collapse:collapse;
+  }
+  .table-users th, .table-users td{
+    border-bottom:1px solid #eee;
+    padding:.6rem .5rem;
+    vertical-align:middle;
+  }
+  .table-users th{
+    text-align:left;
+    color:#374151;
+    font-weight:700;
+  }
+  .inline-form{ display:inline; }
+  .w-100{ width:100%; }
+</style>
+
+<script>
+  // Kleiner Schutz beim Selbst-Degradieren (nur Hinweis)
+  document.querySelectorAll('.user-update-form').forEach(form => {
+    form.addEventListener('submit', function(e){
+      try{
+        const roleSel = form.querySelector('select[name="role"]');
+        if(roleSel && roleSel.value === 'user'){
+          // Falls der aktuell eingeloggte Admin sich selbst auf "user" setzt, kurz nachfragen
+          const row = form.closest('tr');
+          const nameCell = row && row.querySelector('td:first-child div');
+          const username = nameCell ? nameCell.textContent.trim() : '';
+          const me = "{{ session.username|default('') }}";
+          if (username && me && username.toLowerCase() === me.toLowerCase()){
+            if(!confirm('Du degradierst dich selbst auf "User". Fortfahren?')){
+              e.preventDefault();
+            }
+          }
+        }
+      }catch(_){}
+    });
+  });
+</script>
+{% endblock %}
+
+

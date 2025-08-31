@@ -1,0 +1,371 @@
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 2rem; }
+.card { max-width: 440px; border: 1px solid #ddd; border-radius: 12px; padding: 1.2rem; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+label { display:block; margin-top:.6rem; }
+input { width: 100%; padding: .6rem; margin-top:.2rem; border-radius: 8px; border: 1px solid #ccc; }
+button { margin-top: 1rem; padding:.7rem 1rem; border:0; border-radius:10px; cursor:pointer; }
+.primary { background:#222; color:#fff; }
+.link { text-decoration:none; color:#0a58ca; }
+.topbar { display:flex; justify-content:space-between; align-items:center; margin-bottom:1.2rem; }
+.muted { color:#666; font-size:.95rem; }
+.ok { color: #2e7d32; }
+.err { color: #c62828; }
+.grid { display:grid; gap:.8rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.box { padding:1rem; border:1px dashed #ccc; border-radius:10px; }
+/* ===== Layout-Refinement ===== */
+.grid-top {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.section-sep {
+  border-top: 2px solid #eee;
+  margin: 1.2rem 0 1.2rem;
+}
+
+.box {
+  padding: 1.2rem;                 /* mehr Luft */
+  border: 1.5px solid #d0d7de;      /* solider, etwas dicker */
+  border-radius: 12px;
+  background: #fff;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: .4rem;
+  margin-top: .6rem;
+  font-size: .95rem;
+}
+
+.calendar-tile {
+  text-decoration: none;
+  padding: .6rem;                   /* mehr innerer Abstand */
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  display: block;
+  background: #fff;
+}
+
+.calendar-tile--selected {
+  background: #eef7ff;
+  border-color: #cfe3ff;
+}
+
+.calendar-tile--out {
+  opacity: .5;
+}
+
+.tile-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+@media (max-width: 900px) {
+  .grid-top {
+    grid-template-columns: 1fr;     /* mobil untereinander */
+  }
+}
+
+/* ===== Layout Cleanup ===== */
+.page { max-width: 1100px; margin: 0 auto; }
+
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+  align-items: start;
+}
+
+.section-sep {
+  border-top: 2px solid #eee;
+  margin: 1.4rem 0;
+}
+
+.box {
+  padding: 1.2rem;
+  border: 1.5px solid #d0d7de;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.calendar-wrap,
+.daylist-wrap {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.grid-7 {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: .4rem;
+}
+
+.calendar-head {
+  margin-top: .6rem;
+  font-size: .95rem;
+  color: #666;
+}
+
+.calendar-grid { margin-top: .2rem; }
+
+.calendar-tile {
+  display: block;
+  text-decoration: none;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  padding: .6rem .5rem;
+  background: #fff;
+  text-align: center;
+}
+
+.calendar-tile--selected {
+  background: #eef7ff;
+  border-color: #cfe3ff;
+}
+
+.calendar-tile--out { opacity: .5; }
+
+.day-num { font-weight: 700; }
+
+.day-count {
+  font-size: .85rem;
+  color: #666;
+  margin-top: .15rem;
+}
+
+.calendar-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: .4rem;
+}
+
+@media (max-width: 900px) {
+  .two-col { grid-template-columns: 1fr; }
+}
+
+/* ===== Brand & Glitter Background ===== */
+/*:root{
+  --brand-accent: #7a59ff;
+}*/
+
+/* Vollflächiger Hintergrund mit Watermark + zarter Verlauf */
+body{ position: relative; min-height: 100vh; }
+body::before{
+  content:"";
+  position: fixed; inset:0;
+  z-index: -2;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='160' viewBox='0 0 320 160'><text x='0' y='120' font-family='Segoe UI, Roboto, Arial' font-size='48' fill='rgba(0,0,0,0.04)' transform='rotate(-20 80 80)'>Glitzerkram AG</text></svg>"),
+    linear-gradient(135deg,#fffefd 0%, #fafaff 50%, #f4f7ff 100%);
+  background-size: 320px 160px, cover;
+  background-repeat: repeat, no-repeat;
+  background-position: center;
+}
+
+
+@keyframes sparkleMove{
+  0%   { background-position:   0px   0px,   0px   0px,   0px   0px; }
+  50%  { background-position: 400px -200px, -150px 300px, 250px -250px; }
+  100% { background-position: 800px -400px, -300px 600px, 500px -500px; }
+}
+
+/* Brand / Topbar */
+.brand{
+  display:flex; flex-direction:column; gap:.2rem;
+}
+.brand .logo{
+  display:flex; gap:.5rem; align-items:center; font-weight:700; letter-spacing:.2px;
+}
+.brand .logo svg{ width:28px; height:28px; }
+.brand .logo span{ font-size:1.05rem; }
+.brand .slogan{ color:#666; font-size:.92rem; }
+
+/* Karten & Layout etwas großzügiger (passt zu neuem Hintergrund) */
+.box{
+  padding: 1.2rem;
+  border: 1.5px solid #d0d7de;
+  border-radius: 12px;
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 6px 24px rgba(0,0,0,.04);
+}
+
+/* Seite mittig begrenzen (du hast .page schon – hier nur zur Sicherheit) */
+.page{ max-width:1100px; margin:0 auto; }
+
+/* Kalender hübscher & mittig (du hast die Klassen schon, verfeinert) */
+.calendar-wrap, .daylist-wrap{ max-width:900px; margin:0 auto; }
+.grid-7{ display:grid; grid-template-columns:repeat(7,1fr); gap:.45rem; }
+.calendar-head{ margin-top:.6rem; font-size:.95rem; color:#666; }
+.calendar-grid{ margin-top:.25rem; }
+.calendar-tile{
+  display:block; text-decoration:none; border:1px solid #ddd; border-radius:10px;
+  padding:.65rem .5rem; background:#fff; text-align:center;
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.calendar-tile:hover{ transform: translateY(-1px); box-shadow:0 6px 14px rgba(0,0,0,.06); }
+.calendar-tile--selected{ background:#eef7ff; border-color:#cfe3ff; }
+.calendar-tile--out{ opacity:.5; }
+.day-num{ font-weight:700; }
+.day-count{ font-size:.82rem; color:#666; margin-top:.12rem; }
+
+/* Zwei-Spalten-Layout oben (du hast .two-col schon – hier lassen wir's) */
+
+/* ===== Rosa Seitenrahmen (breit) ===== */
+:root{
+  --frame-color: #f7b6cf;         /* Rosa */
+  --frame-glow: rgba(247,182,207,.55);
+}
+
+/* Rahmen liegt über dem Hintergrund, aber unter dem Inhalt */
+body{ position: relative; min-height: 100vh; }
+body::after{
+  content:"";
+  position: fixed;
+  inset: 0;
+  z-index: -1;             /* > body::before (Hintergrund), < Inhalt */
+  pointer-events: none;
+  /* Breiter Innenrahmen + weicher Glow */
+  box-shadow:
+    inset 0 0 0 36px var(--frame-color),
+    inset 0 0 120px var(--frame-glow);
+}
+
+/* ===== Kalender kräftiger ===== */
+.calendar-wrap { max-width: 980px; margin: 0 auto; }
+.daylist-wrap { max-width: 980px; margin: 1rem auto 0; }
+
+.grid-7 { gap: .6rem; }  /* mehr Abstand */
+.calendar-head { font-size: 1rem; } /* Wochentage minimal größer */
+
+.calendar-tile{
+  padding: .9rem .6rem;          /* größere Kachel */
+  border-radius: 12px;
+  border: 1.5px solid #ddd;
+}
+.calendar-tile--selected{
+  background: #ffe9f2;           /* zart rosa passend zum Rahmen */
+  border-color: #f7b6cf;
+}
+
+.day-num{
+  font-weight: 800;
+  font-size: 1.15rem;            /* Zahl größer */
+  line-height: 1;
+}
+.day-count{
+  margin-top: .2rem;
+  font-size: .82rem;             /* klein, grau, in Klammern (Template liefert (n)) */
+  color: #666;
+}
+
+/* === Seitenrahmen in Rosa (breit) + Bild-Hintergrund innerhalb === */
+:root{
+  --frame-color: #f7b6cf;              /* Rahmenfarbe */
+  --frame-glow: rgba(247,182,207,.55);
+  --accent: var(--frame-color);        /* Button-/Akzentfarbe */
+}
+
+html, body { height: 100%; }
+body {
+  position: relative;
+  min-height: 100vh;
+  /* Content klar innerhalb des Rahmens halten */
+  padding: 44px;                       /* Abstand zum inneren Rahmenrand */
+  box-sizing: border-box;
+}
+
+/* Hintergrundbild unter dem Rahmen, füllt die Seite */
+body::before{
+  content:"";
+  position: fixed; inset:0;
+  z-index: -2;
+  background:
+    /* Hauch von Weiß für Lesbarkeit – gern abschwächen, wenn zu hell */
+    linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.88)),
+    url("/static/bg.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+
+/* Rosa Rahmen oben drüber (unter Content) */
+body::after{
+  content:"";
+  position: fixed; inset:0;
+  z-index: -1;                         /* unter Content, über Hintergrund */
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 36px var(--frame-color),
+    inset 0 0 120px var(--frame-glow);
+}
+
+/* Karten/Boxen leicht translucide, damit BG dezent durchschimmert */
+.box{
+  padding: 1.2rem;
+  border: 1.5px solid #d0d7de;
+  border-radius: 12px;
+  background: rgba(255,255,255,.95);
+  box-shadow: 0 6px 24px rgba(0,0,0,.06);
+}
+
+/* Seite mittig begrenzen (falls noch nicht) */
+.page { max-width: 1100px; margin: 0 auto; }
+
+/* === Buttons in Rahmenfarbe === */
+button,
+.button {
+  border: 0;
+  border-radius: 10px;
+  padding: .7rem 1rem;
+  cursor: pointer;
+}
+
+.primary {
+  background: var(--accent);
+  color: #fff;
+}
+.primary:hover { filter: brightness(1.05); }
+
+.danger {
+  background: #b23a48; /* dunkles Rot als "Warnen" */
+  color: #fff;
+}
+.danger:hover { filter: brightness(1.05); }
+
+/* Links optional an Accent angleichen */
+a.link { color: #a83f72; } /* etwas dunkler als Rahmen */
+a.link:hover { text-decoration: underline; }
+
+/* === Kalender kräftiger und mittig === */
+.calendar-wrap, .daylist-wrap { max-width: 980px; margin: 0 auto; }
+.grid-7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: .6rem; }
+.calendar-head { margin-top: .6rem; font-size: 1rem; color: #666; }
+.calendar-grid { margin-top: .25rem; }
+.calendar-tile{
+  display: block; text-decoration: none; text-align: center;
+  border: 1.5px solid #ddd; border-radius: 12px; padding: .9rem .6rem; background: #fff;
+  transition: transform .08s ease, box-shadow .08s ease, border-color .12s ease;
+}
+.calendar-tile:hover{ transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,.06); }
+.calendar-tile--selected{ background: #ffe9f2; border-color: var(--frame-color); }
+.calendar-tile--out{ opacity: .5; }
+.day-num{ font-weight: 800; font-size: 1.15rem; line-height: 1; }
+.day-count{ margin-top: .2rem; font-size: .82rem; color: #666; }
+
+/* Oben zwei Spalten (du hast bereits .two-col – hier nur falls nötig) */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; align-items: start; }
+@media (max-width: 900px){ .two-col { grid-template-columns: 1fr; } }
+
+.section-sep { border-top: 2px solid #eee; margin: 1.4rem 0; }
+
+/* === Admin: Offene Tickets Überschrift: weiß + eine Stufe größer === */
+.open-tickets-title {
+  color: #fff;
+  font-size: 1.5rem; /* eine Nummer größer */
+  /* optional: font-weight: 700; */
+}

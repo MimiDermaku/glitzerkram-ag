@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block slogan %}Einloggen. Kontrollieren. Glitzern.{% endblock %}
+{% block content %}
+
+<!-- Spacer: schiebt Kopfzeile ein Stück nach unten -->
+<div style="height:16px;"></div>
+
+<div class="d-flex justify-content-between align-items-center mb-3 reports-strip">
+  <h1 class="h4 mb-0 slogan-font open-tickets-title">Reports</h1>
+  <a href="{{ url_for(back_ep) }}" class="btn btn-secondary">← Zurück zum Admin-Dashboard</a>
+</div>
+
+<form id="reportForm" class="row g-2 mb-3" method="get" action="{{ url_for('admin_reports') }}">
+  <input type="hidden" name="chronik" id="chronikInput" value="{{ request.args.get('chronik', 'all') }}">
+  <div class="col-auto">
+    <label class="form-label mb-0">User</label>
+    <select class="form-select" name="uid" onchange="this.form.submit()">
+      {% for u in users %}
+        <option value="{{ u.id }}" {% if u.id == uid %}selected{% endif %}>{{ u.username }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  {# Periode – Default: month #}
+  {% set sel_period = request.args.get('period', 'month') %}
+  <div class="col-auto">
+    <label class="form-label mb-0">Periode</label>
+    <select class="form-select" name="period" onchange="this.form.submit()">
+      <option value="day"   {% if sel_period=='day' %}selected{% endif %}>Tag</option>
+      <option value="week"  {% if sel_period=='week' %}selected{% endif %}>Woche</option>
+      <option value="month" {% if sel_period=='month' %}selected{% endif %}>Monat</option>
+      <option value="year"  {% if sel_period=='year' %}selected{% endif %}>Jahr</option>
+    </select>
+  </div>
+
+  <div class="col-auto">
+    <label class="form-label mb-0">Datum (Anker)</label>
+    {# serverseitig normalisierter Anker #}
+    <input class="form-control" type="date" name="date"
+           value="{{ anchor_norm_iso }}"
+           onchange="this.form.submit()" />
+  </div>
+
+  {# Nur Anzeige von Monat/Jahr #}
+  <div class="col-auto">
+    <label class="form-label mb-0">Monat</label>
+    <input class="form-control" type="text" value="{{ month }}" disabled />
+  </div>
+  <div class="col-auto">
+    <label class="form-label mb-0">Jahr</label>
+    <input class="form-control" type="text" value="{{ year }}" disabled />
+  </div>
+
+  {# CSV-Export mit identischen Filtern (inkl. normalisiertem Anker & Chronik) #}
+  <div class="col-auto align-self-end">
+    <a
+      id="exportLink"
+      class="btn btn-blaugrau"
+      href="{{ url_for('admin_reports_export') }}?uid={{ uid }}&period={{ sel_period }}&date={{ anchor_norm_iso }}"
+      title="CSV exportieren (übernimmt aktuellen Chronik-Filter)"
+    >CSV exportieren</a>
+  </div>
+</form>
+
+{# === Chronik-Filterleiste === #}
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <div class="btn-group btn-group-sm" role="group" aria-label="Chronikfilter">
+    <button type="button" class="btn btn-outline-secondary js-chronik-btn" data-mode="all">Alle</button>
+    <button type="button" class="btn btn-outline-secondary js-chronik-btn" data-mode="over">Nur Überstunden (Δ &gt; 0)</button>
+    <button type="button" class="btn btn-outline-secondary js-chronik-btn" data-mode="under">Nur Fehlstunden (Δ &lt; 0)</button>
+    <button type="button" class="btn btn-outline-secondary js-chronik-btn" data-mode="afk">AFK-Tage (AFK &gt; 0)</button>
+  </div>
+  <small id="chronikInfo" class="text-muted"></small>
+</div>
+{# === /Chronik-Filterleiste === #}
+
+<!-- KPIs -->
+<div class="mb-3 d-flex flex-wrap gap-2 align-items-center" id="kpis"
+     data-weekly="{{ weekly_minutes|int }}"
+     data-soll-month="{{ soll_minutes|int }}"
+     data-net-month="{{ sums.net|int }}"
+     data-delta-month="{{ delta_minutes|int }}">
+  <span class="badge text-bg-secondary rounded-pill">Wochen-Soll: <span class="js-hhmm" data-min="{{ weekly_minutes|int }}"></span></span>
+  <span class="badge text-bg-secondary rounded-pill">Monats-Soll: <span class="js-hhmm" data-min="{{ soll_minutes|int }}"></span></span>
+  <span class="badge text-bg-secondary rounded-pill">Netto: <span class="js-hhmm" data-min="{{ sums.net|int }}"></span></span>
+  <span class="badge {% if delta_minutes < 0 %}text-bg-danger{% else %}text-bg-success{% endif %} rounded-pill">
+    Δ: <span class="js-hhmm-signed" data-min="{{ delta_minutes|int }}"></span>
+  </span>
+</div>
+
+{% if rows %}
+  <div class="table-responsive">
+    <table class="table table-sm table-striped align-middle" id="reportTable">
+      <thead>
+        <tr>
+          <th>Datum</th>
+          <th>Arbeit (h:mm)</th>
+          <th>Pausen (h:mm)</th>
+          <th>AFK (h:mm)</th>
+          <th>Netto (h:mm)</th>
+          <th>Soll (h:mm)</th>
+          <th>Δ (h:mm)</th>
+          <th>Ampel</th>
+          <th>Flags</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr
+          data-date="{{ r.date }}"
+          data-work="{{ r.work }}"
+          data-breaks="{{ r.breaks }}"
+          data-afk="{{ r.afk }}"
+          data-net="{{ r.net }}"
+        >
+          <td>{{ r.date }}</td>
+          <td class="text-end js-min" data-min="{{ r.work }}">{{ r.work }}</td>
+          <td class="text-end js-min" data-min="{{ r.breaks }}">{{ r.breaks }}</td>
+          <td class="text-end js-min" data-min="{{ r.afk }}">{{ r.afk }}</td>
+          <td class="text-end js-min js-net" data-min="{{ r.net }}">{{ r.net }}</td>
+          <td class="text-end js-soll">–</td>
+          <td class="text-end js-delta">–</td>
+          <td class="js-ampel">–</td>
+          <td>
+            {% for f in r.flags %}
+              <span class="badge text-bg-secondary rounded-pill me-1">{{ f }}</span>
+            {% endfor %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold">
+          <td>Summe</td>
+          <td id="sum-work"   class="text-end js-min" data-min="{{ sums.work }}">{{ sums.work }}</td>
+          <td id="sum-breaks" class="text-end js-min" data-min="{{ sums.breaks }}">{{ sums.breaks }}</td>
+          <td id="sum-afk"    class="text-end js-min" data-min="{{ sums.afk }}">{{ sums.afk }}</td>
+          <td id="sum-net"    class="text-end js-min" data-min="{{ sums.net }}">{{ sums.net }}</td>
+          <td id="sum-soll"   class="text-end">–</td>
+          <td id="sum-delta"  class="text-end">–</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td>Soll (Monat, Server)</td>
+          <td colspan="3" class="text-end js-min" data-min="{{ soll_minutes }}">{{ soll_minutes }}</td>
+          <td>Δ (Monat, Server)</td>
+          <td class="text-end js-min-signed {% if delta_minutes < 0 %}text-danger{% else %}text-success{% endif %}" data-min="{{ delta_minutes }}">{{ delta_minutes }}</td>
+          <td colspan="3"></td> {# angepasst: bündig mit 9 Spalten #}
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+{% else %}
+  <div class="alert alert-info">Keine Daten für diesen Zeitraum/Benutzer.</div>
+{% endif %}
+
+<style>
+  /* Optik/Bedienung Chronik-Filter */
+  .btn-group .btn.active { pointer-events: none; }
+
+  /* etwas Puffer am rechten Rand, damit TFOOT bündig wirkt */
+  #reportTable thead th:last-child,
+  #reportTable tbody td:last-child,
+  #reportTable tfoot td:last-child { padding-right: 1rem; }
+</style>
+
+<script>
+  /* (JS unverändert) */
+  // --- h:mm Formatter ---
+  function fmtMinutes(min) {
+    let m = parseInt(min, 10);
+    if (isNaN(m)) m = 0;
+    const sign = m < 0 ? "-" : "";
+    m = Math.abs(m);
+    const h = Math.floor(m / 60);
+    const mm = String(m % 60).padStart(2, "0");
+    return sign + h + ":" + mm;
+  }
+  function setText(el, minutes, signed=false) {
+    if (!el) return;
+    const val = parseInt(minutes, 10) || 0;
+    el.textContent = signed
+      ? (val >= 0 ? "+" : "") + fmtMinutes(val)
+      : fmtMinutes(val);
+  }
+
+  // --- URL / Export / Buttons für Chronik-Filter ---
+  function getURLMode(){
+    const p = new URLSearchParams(location.search);
+    const v = (p.get('chronik') || 'all').toLowerCase();
+    return (v === 'over' || v === 'under' || v === 'afk') ? v : 'all';
+  }
+  function setURLMode(mode){
+    const u = new URL(location.href);
+    u.searchParams.set('chronik', mode);
+    history.replaceState({}, '', u.toString());
+  }
+  function updateExportLink(mode){
+    const a = document.getElementById('exportLink');
+    if (!a) return;
+    const u = new URL(a.href, location.origin);
+    u.searchParams.set('chronik', mode);
+    a.href = u.toString();
+  }
+  function setActiveButton(mode){
+    document.querySelectorAll('.js-chronik-btn').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.mode === mode);
+    });
+  }
+
+  // --- Anwenden des Chronik-Filters + Summen neu berechnen ---
+  function applyChronikFilter(mode){
+    const table = document.getElementById('reportTable');
+    if (!table) return;
+
+    let sumW=0, sumB=0, sumA=0, sumN=0, sumS=0, sumD=0, visible=0;
+
+    table.querySelectorAll('tbody tr').forEach(tr=>{
+      const delta = parseInt(tr.getAttribute('data-delta') || '0', 10);
+      const afk   = parseInt(tr.getAttribute('data-afk')   || '0', 10);
+
+      let show = true;
+      if (mode === 'over')   show = (delta > 0);   // Δ > 0
+      if (mode === 'under')  show = (delta < 0);   // Δ < 0
+      if (mode === 'afk')    show = (afk   > 0);   // AFK > 0
+
+      tr.style.display = show ? '' : 'none';
+
+      if (show){
+        const work   = parseInt(tr.getAttribute('data-work')   || '0', 10);
+        const brks   = parseInt(tr.getAttribute('data-breaks') || '0', 10);
+        const net    = parseInt(tr.getAttribute('data-net')    || '0', 10);
+        const soll   = parseInt(tr.getAttribute('data-soll')   || '0', 10);
+        sumW += work; sumB += brks; sumA += afk; sumN += net; sumS += soll; sumD += delta;
+        visible++;
+      }
+    });
+
+    // Summen schreiben
+    setText(document.getElementById('sum-work'),  sumW);
+    setText(document.getElementById('sum-breaks'),sumB);
+    setText(document.getElementById('sum-afk'),   sumA);
+    setText(document.getElementById('sum-net'),   sumN);
+    const sumSollCell  = document.getElementById('sum-soll');
+    const sumDeltaCell = document.getElementById('sum-delta');
+    if (sumSollCell){ sumSollCell.dataset.min = sumS; setText(sumSollCell, sumS); }
+    if (sumDeltaCell){
+      sumDeltaCell.dataset.min = sumD;
+      setText(sumDeltaCell, sumD, true);
+      sumDeltaCell.classList.toggle('text-success', sumD >= 0);
+      sumDeltaCell.classList.toggle('text-danger',  sumD < 0);
+    }
+
+    // Info + Export + Buttons + URL + Hidden-Field
+    const info = document.getElementById('chronikInfo');
+    if (info){
+      const label =
+        mode==='over' ? 'nur Überstunden' :
+        mode==='under' ? 'nur Fehlstunden' :
+        mode==='afk' ? 'nur AFK-Tage' :
+        'alle';
+      info.textContent = `Zeilen: ${visible} (Filter: ${label}) – CSV-Export übernimmt den Filter`;
+    }
+    updateExportLink(mode);
+    setActiveButton(mode);
+    setURLMode(mode);
+    const hidden = document.getElementById('chronikInput');
+    if (hidden) hidden.value = mode;
+  }
+
+  (function(){
+    try {
+      // 1) Roh-Minuten formatieren
+      document.querySelectorAll('.js-min').forEach(td => {
+        const raw = parseInt(td.getAttribute('data-min') || td.textContent, 10);
+        td.dataset.min = isNaN(raw) ? 0 : raw;
+        td.textContent = fmtMinutes(td.dataset.min);
+      });
+      // signiert (z.B. Δ)
+      document.querySelectorAll('.js-min-signed').forEach(td => {
+        const raw = parseInt(td.getAttribute('data-min') || td.textContent, 10);
+        td.dataset.min = isNaN(raw) ? 0 : raw;
+        td.textContent = (raw >= 0 ? "+" : "") + fmtMinutes(raw);
+      });
+      // KPIs
+      document.querySelectorAll('.js-hhmm').forEach(span => {
+        const raw = parseInt(span.getAttribute('data-min') || "0", 10);
+        span.textContent = fmtMinutes(raw);
+      });
+      document.querySelectorAll('.js-hhmm-signed').forEach(span => {
+        const raw = parseInt(span.getAttribute('data-min') || "0", 10);
+        span.textContent = (raw >= 0 ? "+" : "") + fmtMinutes(raw);
+      });
+
+      // 2) Per-Tag Soll/Delta/Ampel berechnen, in Zellen schreiben UND am <tr> speichern
+      const table = document.getElementById('reportTable');
+      if (!table) return;
+      const weekly = {{ weekly_minutes|int }};
+      const dailyTarget = weekly / 5.0;
+
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        const d = tr.getAttribute('data-date'); // YYYY-MM-DD
+        const net = parseInt(tr.getAttribute('data-net') || '0', 10);
+
+        const wd = (function(s){
+          const [Y, M, D] = s.split('-').map(n => parseInt(n,10));
+          return new Date(Y, M-1, D).getDay(); // 0=So
+        })(d);
+
+        const isWeekday = (wd >= 1 && wd <= 5);
+        const soll = isWeekday ? Math.round(dailyTarget) : 0;
+        const delta = net - soll;
+
+        const tdSoll  = tr.querySelector('.js-soll');
+        const tdDelta = tr.querySelector('.js-delta');
+        const tdAmpel = tr.querySelector('.js-ampel');
+
+        if (tdSoll)  { tdSoll.dataset.min = soll;  setText(tdSoll, soll); }
+        if (tdDelta) {
+          tdDelta.dataset.min = delta;
+          setText(tdDelta, delta, true);
+          tdDelta.classList.remove('text-success','text-danger');
+          tdDelta.classList.add(delta >= 0 ? 'text-success' : 'text-danger');
+        }
+        if (tdAmpel) {
+          let icon = '🟡';
+          if (delta >= 0) icon = '🟢';
+          else if (delta <= -60) icon = '🔴';
+          tdAmpel.textContent = icon;
+        }
+
+        // fürs Filtern/Summen am <tr> hinterlegen
+        tr.setAttribute('data-soll',  String(soll));
+        tr.setAttribute('data-delta', String(delta));
+      });
+
+      // 3) Chronik-Filter initial anwenden (aus URL) + Buttons binden
+      const startMode = getURLMode();
+      applyChronikFilter(startMode);
+
+      document.querySelectorAll('.js-chronik-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=> applyChronikFilter(btn.dataset.mode));
+      });
+    } catch(e) {
+      console.warn('Reports formatting/filter:', e);
+    }
+  })();
+</script>
+
+{% endblock %}

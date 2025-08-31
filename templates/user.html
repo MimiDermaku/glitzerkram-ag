@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block content %}
+  <div class="page">
+
+    {% if session.role == 'admin' %}
+      <div class="d-flex justify-content-end mb-2">
+        <a href="{{ url_for('admin_only') }}" class="btn btn-secondary">← Admin-Dashboard</a>
+      </div>
+    {% endif %}
+
+    <h1 class="greeting">Hi {{ session.username|capitalize }} <img class="greet-ico" src="{{ url_for('static', filename='greeting-badge.png') }}" alt="Badge"></h1>
+    <p class="intro-sub">hab einen schönen Tag und glitzer schön.</p>
+
+    <!-- TOP: 2 Spalten -->
+    <div class="two-col">
+      <!-- links: Buchungsformular -->
+      <div class="box">
+        <h3 class="slogan-font box-heading">Neue Buchung</h3>
+        <form method="POST" action="{{ url_for('book') }}">
+          <label for="action">Aktion</label>
+          <select id="action" name="action" required style="width:100%; padding:.6rem; border-radius:8px; border:1px solid #ccc; margin-top:.2rem;">
+            <option value="" disabled selected>Bitte wählen…</option>
+            {% for key, label in actions %}
+              <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+
+          <label for="note">Notiz (optional)</label>
+          <input id="note" name="note" type="text" placeholder="z. B. Einsatzort, Grund">
+
+          <button class="primary" type="submit">Buchen</button>
+        </form>
+
+        <!-- Zentraler Ticket-Button -->
+        <div class="section-sep" style="margin:.9rem 0;"></div>
+        <button type="button" class="btn btn-rose" onclick="openBlankTicketDialog()">Ticket eröffnen (vergessen / Korrektur)</button>
+        <p class="muted" style="margin:.4rem 0 0 0;">Ohne bestehende Buchung – z. B. „Feierabend vergessen“.</p>
+
+        <!-- Tagebuch-Button (Mo–Fr) -->
+        <div class="section-sep" style="margin:.9rem 0;"></div>
+        <a href="{{ url_for('journal') }}" class="btn btn-secondary" style="display:block; width:100%; text-align:center;">
+          📝 Tagebuch (Mo–Fr)
+        </a>
+        <p class="muted" style="margin:.4rem 0 0 0;">Schlichte Wochenansicht mit großen Kacheln für Stichpunkte.</p>
+      </div>
+
+      <!-- rechts: Letzte 5 -->
+      <div class="box">
+        <h3 class="slogan-font box-heading">Letzte 5 Buchungen</h3>
+        {% if bookings %}
+          <ul style="padding-left:1rem; margin-top:.6rem;">
+            {% for b in bookings %}
+              <li style="margin:.4rem 0;">
+                <div>
+                  {% if b.action == 'ticket' %}
+                    <strong>Ticket</strong>
+                  {% else %}
+                    <strong>{{ b.action }}</strong>
+                  {% endif %}
+                  • <span class="muted">{{ b.local_created_at }}</span>
+                  {% if b.needs_review %}<span class="ok"> ✓ Ticket gesendet</span>{% endif %}
+                  {% if b.note %}<span class="muted"> • Notiz: {{ b.note }}</span>{% endif %}
+                  {% if b.action == 'ticket' and b.ticket_message %}
+                    <div class="muted">→ {{ b.ticket_message }}</div>
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="muted">Noch keine Buchungen.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Optische Trennung -->
+    <div class="section-sep"></div>
+
+    <!-- Kalender (mittig) -->
+    <div class="box calendar-wrap">
+      <div class="calendar-nav">
+        <a class="link" href="{{ url_for('user_only') }}?y={{ prev_y }}&m={{ '%02d' % prev_m }}">«</a>
+        <strong>{{ month_name }} {{ year }}</strong>
+        <a class="link" href="{{ url_for('user_only') }}?y={{ next_y }}&m={{ '%02d' % next_m }}">»</a>
+      </div>
+
+      <!-- Wochentags-Kopfzeile -->
+      <div class="calendar-head grid-7">
+        <div>Mo</div><div>Di</div><div>Mi</div><div>Do</div><div>Fr</div><div>Sa</div><div>So</div>
+      </div>
+
+      <!-- Tageskacheln -->
+      <div class="calendar-grid grid-7">
+        {% for week in weeks %}
+          {% for d in week %}
+            {% set q = 'y=' ~ d.iso[:4] ~ '&m=' ~ d.iso[5:7] ~ '&d=' ~ d.iso[8:10] %}
+            <a href="{{ url_for('user_only') }}?{{ q }}"
+               class="calendar-tile
+                      {% if d.is_selected %} calendar-tile--selected{% endif %}
+                      {% if not d.in_month %} calendar-tile--out{% endif %}
+                      {% if d.is_today %} calendar-tile--today{% endif %}">
+              <div class="day-num">{{ d.day }}</div>
+              {% if d.count > 0 %}
+                <div class="day-count">({{ d.count }})</div>
+              {% else %}
+                <div class="day-count">&nbsp;</div>
+              {% endif %}
+            </a>
+          {% endfor %}
+        {% endfor %}
+      </div>
+
+      <p class="muted" style="margin-top:.6rem;">
+        Legende: Zahl in Klammern unter dem Datum = Anzahl Buchungen des Tages.
+      </p>
+    </div>
+
+    <!-- Tagesbuchungen (mittig) -->
+    <div class="box daylist-wrap" style="margin-top:1rem;">
+      <h3 class="slogan-font box-heading day-heading">
+        Buchungen am <span class="day-heading-date">{{ selected_date }}</span>
+      </h3>
+      {% if day_bookings and day_bookings|length > 0 %}
+        <ul style="padding-left:1rem; margin-top:.6rem;">
+          {% for b in day_bookings %}
+            <li style="margin:.4rem 0%;">
+              <div>
+                {% if b.action == 'ticket' %}
+                  <strong>Ticket</strong>
+                {% else %}
+                  <strong>{{ b.action }}</strong>
+                {% endif %}
+                • <span class="muted">{{ b.local_created_at[11:19] }}</span>
+                {% if b.note %}<span class="muted"> • Notiz: {{ b.note }}</span>{% endif %}
+                {% if b.action == 'ticket' and b.ticket_message %}
+                  <div class="muted">→ {{ b.ticket_message }}</div>
+                {% endif %}
+                {% if b.needs_review %}
+                  <span class="ok">✓ Ticket gesendet</span>
+                  {% if b.ticket_action %}
+                    <span class="muted"> • Wunsch: {{ 'ändern' if b.ticket_action == 'aendern' else 'löschen' }}</span>
+                  {% endif %}
+                  {% if b.ticket_message and b.action != 'ticket' %}
+                    <div class="muted">→ {{ b.ticket_message }}</div>
+                  {% endif %}
+                {% endif %}
+              </div>
+              <div style="margin-top:.3rem;">
+                {% if b.needs_review %}
+                  <!-- Ticket ist offen -> Schließen anbieten -->
+                  <form method="POST" action="{{ url_for('ticket_close', booking_id=b.id) }}" style="display:inline;">
+                    <button type="submit" class="btn btn-blaugrau">Ticket schließen</button>
+                  </form>
+                {% else %}
+                  {% if b.action != 'ticket' %}
+                    <!-- Ticket eröffnen nur bei normalen Buchungen -->
+                    <button type="button" class="btn btn-rose" onclick="openTicketDialog({{ b.id }})">Ticket eröffnen</button>
+                  {% endif %}
+                {% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">Keine Buchungen am ausgewählten Tag.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Popup-Dialog: Ticket für bestehende Buchung -->
+  <dialog id="ticketDialog" style="border:1px solid #ccc; border-radius:12px; padding:1rem; max-width:520px;">
+    <form id="ticketForm" method="POST" action="{{ url_for('ticket_open_simple') }}">
+      <input type="hidden" name="booking_id" id="ticket_booking_id" value="">
+      <h3 style="margin-top:0;">Ticket eröffnen</h3>
+      <p class="muted" style="margin-top:-.5rem;">Bitte wähle, was passieren soll, und beschreibe kurz das Problem.</p>
+
+      <label for="ticket_action">Aktion</label>
+      <select id="ticket_action" name="ticket_action" style="width:100%; padding:.6rem; border-radius:8px; border:1px solid #ccc; margin-top:.2rem;">
+        <option value="" selected>— Bitte wählen (optional) —</option>
+        <option value="aendern">Ändern</option>
+        <option value="loeschen">Löschen</option>
+      </select>
+
+      <label for="ticket_message" style="margin-top:.6rem;">Begründung / Wunsch (optional)</label>
+      <textarea id="ticket_message" name="ticket_message" rows="4" style="width:100%; padding:.6rem; border-radius:8px; border:1px solid #ccc;"></textarea>
+
+      <div style="display:flex; gap:.6rem; margin-top:1rem; justify-content:flex-end;">
+        <button type="button" onclick="closeTicketDialog()">Abbrechen</button>
+        <button type="submit" class="primary">Senden</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Popup-Dialog: Zentrales Blanko-Ticket -->
+  <dialog id="blankTicketDialog" style="border:1px solid #ccc; border-radius:12px; padding:1rem; max-width:520px;">
+    <form method="POST" action="{{ url_for('ticket_open_blank') }}">
+      <h3 style="margin-top:0;">Ticket eröffnen (ohne Buchung)</h3>
+      <p class="muted" style="margin-top:-.5rem;">Für vergessene An-/Abmeldungen oder Nachträge.</p>
+
+      <label for="blank_message">Beschreibung (Pflicht)</label>
+      <textarea id="blank_message" name="message" rows="4" required
+                placeholder="Kurz beschreiben, was korrigiert werden soll."
+                style="width:100%; padding:.6rem; border-radius:8px; border:1px solid #ccc;"></textarea>
+
+      <div style="display:grid; gap:.6rem; grid-template-columns:1fr 1fr; margin-top:.6rem;">
+        <div>
+          <label for="blank_wish_action">Wunsch-Aktion (optional)</label>
+          <select id="blank_wish_action" name="wish_action" style="width:100%; padding:.6rem; border-radius:8px; border:1px solid #ccc;">
+            <option value="" selected>—</option>
+            {% for key, label in actions %}
+              <option value="{{ label }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="blank_wish_date">Datum (optional)</label>
+          <input id="blank_wish_date" name="wish_date" type="date" style="width:100%; padding:.6rem; border-radius:8px; border:1px solid #ccc;">
+        </div>
+      </div>
+
+      <div style="margin-top:.6rem;">
+        <label for="blank_wish_time">Uhrzeit (optional)</label>
+        <input id="blank_wish_time" name="wish_time" type="time" step="60"
+               style="width:100%; padding:.6rem; border-radius:8px; border:1px solid #ccc;">
+      </div>
+
+      <div style="display:flex; gap:.6rem; margin-top:1rem; justify-content:flex-end;">
+        <button type="button" onclick="closeBlankTicketDialog()">Abbrechen</button>
+        <button type="submit" class="primary">Senden</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script>
+    // Ticket-Dialog für bestehende Buchung
+    function openTicketDialog(bookingId) {
+      document.getElementById('ticket_booking_id').value = String(bookingId);
+      document.getElementById('ticket_action').value = "";
+      document.getElementById('ticket_message').value = "";
+      const dlg = document.getElementById('ticketDialog');
+      if (typeof dlg.showModal === "function") { dlg.showModal(); } else { dlg.show(); }
+    }
+    function closeTicketDialog() {
+      document.getElementById('ticketDialog').close();
+    }
+
+    // Blanko-Ticket-Dialog (zentral)
+    function openBlankTicketDialog() {
+      document.getElementById('blank_message').value = "";
+      document.getElementById('blank_wish_action').value = "";
+      document.getElementById('blank_wish_date').value = "";
+      document.getElementById('blank_wish_time').value = "";
+      const dlg = document.getElementById('blankTicketDialog');
+      if (typeof dlg.showModal === "function") { dlg.showModal(); } else { dlg.show(); }
+    }
+    function closeBlankTicketDialog() {
+      document.getElementById('blankTicketDialog').close();
+    }
+  </script>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+  <!-- Back to Admin -->
+  <div class="d-flex justify-content-end mb-2">
+    <a href="{{ url_for('admin_only') }}" class="btn btn-secondary">← Admin-Dashboard</a>
+  </div>
+
+  <h1 class="slogan-font box-heading">Tagebücher (Admin){% if username %} – {{ username|capitalize }}{% endif %}</h1>
+
+  <!-- Filterleiste -->
+  <div class="box" style="margin-bottom:1rem;">
+    <form method="GET" action="{{ url_for('admin_journal') }}" class="d-flex align-items-end" style="gap:1rem; flex-wrap:wrap;">
+      <div>
+        <label for="uid"><strong>Benutzer</strong></label>
+        <select id="uid" name="uid" required>
+          {% for u in users %}
+            <option value="{{ u.id }}" {% if u.id == uid %}selected{% endif %}>{{ u.username|capitalize }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div>
+        <label for="date"><strong>Woche ab</strong> <span class="muted">(Datum, beliebiger Tag)</span></label>
+        <input id="date" name="date" type="date" value="{{ monday_iso }}">
+      </div>
+
+      <div class="d-flex" style="gap:.5rem;">
+        <a class="btn btn-blaugrau" href="{{ url_for('admin_journal', uid=uid, date=prev_week_date) }}">« Vorherige Woche</a>
+        <button class="btn btn-primary" type="submit">Anzeigen</button>
+        <a class="btn btn-blaugrau" href="{{ url_for('admin_journal', uid=uid, date=next_week_date) }}">Nächste Woche »</a>
+      </div>
+
+      <div class="ms-auto">
+        <a class="btn btn-secondary" href="{{ url_for('admin_journal_export', uid=uid, date=monday_iso) }}">CSV exportieren (diese Woche)</a>
+      </div>
+    </form>
+
+    <div class="muted" style="margin-top:.5rem;">
+      <strong>Zeitraum:</strong> {{ title_range }}
+    </div>
+  </div>
+
+  <!-- Wochenraster: 3 oben, 2 mittig -->
+  <div class="box">
+    <div class="muted" style="margin-bottom:.6rem;">Montag bis Freitag · große, beschreibbare Kacheln</div>
+
+    <!-- Obere Reihe: 3 Kacheln -->
+    <div class="grid-3" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:1rem;">
+      {% for d in week_days[0:3] %}
+        {% set iso = d.isoformat() %}
+        <div class="journal-tile" style="border:1px solid #ddd; border-radius:12px; padding:1rem; min-height:220px; display:flex; flex-direction:column; background:#fff;">
+          <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.5rem;">
+            <div class="slogan-font" style="font-size:1.1rem;">
+              {{ ["Mo","Di","Mi","Do","Fr","Sa","So"][d.weekday()] }} · {{ d.strftime("%d.%m.%Y") }}
+            </div>
+          </div>
+
+          {% set items = entries_by_date.get(iso, []) %}
+          {% if items and items|length > 0 %}
+            <ul style="margin:0; padding-left:1rem; flex:1; overflow:auto;">
+              {% for e in items %}
+                <li style="margin:.35rem 0;">
+                  <div>{{ e.content }}</div>
+                  <div class="muted" style="font-size:.85rem;">{{ e.created_local }}</div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="muted" style="flex:1; display:flex; align-items:center; justify-content:center; text-align:center;">
+              Keine Einträge
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- Untere Reihe: 2 Kacheln mittig -->
+    <div class="grid-2" style="display:grid; grid-template-columns: repeat(2, 1fr); gap:1rem; margin-top:1rem; max-width:70%; margin-left:auto; margin-right:auto;">
+      {% for d in week_days[3:5] %}
+        {% set iso = d.isoformat() %}
+        <div class="journal-tile" style="border:1px solid #ddd; border-radius:12px; padding:1rem; min-height:220px; display:flex; flex-direction:column; background:#fff;">
+          <div class="d-flex justify-content-between align-items-center" style="margin-bottom:.5rem;">
+            <div class="slogan-font" style="font-size:1.1rem;">
+              {{ ["Mo","Di","Mi","Do","Fr","Sa","So"][d.weekday()] }} · {{ d.strftime("%d.%m.%Y") }}
+            </div>
+          </div>
+
+          {% set items = entries_by_date.get(iso, []) %}
+          {% if items and items|length > 0 %}
+            <ul style="margin:0; padding-left:1rem; flex:1; overflow:auto;">
+              {% for e in items %}
+                <li style="margin:.35rem 0;">
+                  <div>{{ e.content }}</div>
+                  <div class="muted" style="font-size:.85rem;">{{ e.created_local }}</div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="muted" style="flex:1; display:flex; align-items:center; justify-content:center; text-align:center;">
+              Keine Einträge
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="muted" style="margin-top:.6rem;">
+    Hinweis: Admins können hier nur einsehen/exportieren. Änderungen oder Löschungen erfolgen im User-Tagebuch.
+  </div>
+</div>
+{% endblock %}

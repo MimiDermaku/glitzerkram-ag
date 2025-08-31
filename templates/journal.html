@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page">
+
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <a href="{{ url_for('user_only') }}" class="btn btn-secondary">← Zurück zum Dashboard</a>
+    <div class="d-flex" style="gap:.6rem;">
+      <!-- Navigation nutzt jetzt prev_week_date / next_week_date -->
+      <a class="btn btn-blaugrau" href="{{ url_for('journal', date=prev_week_date) }}">« Woche</a>
+      <a class="btn btn-secondary" href="{{ url_for('journal') }}">Diese Woche</a>
+      <a class="btn btn-blaugrau" href="{{ url_for('journal', date=next_week_date) }}">Woche »</a>
+    </div>
+  </div>
+
+  <h1 class="slogan-font greeting">Tagebuch (Woche)</h1>
+  <!-- week_label -> title_range aus app.py -->
+  <p class="muted" style="margin-top:-.4rem;">{{ title_range }}</p>
+
+  <div class="box" style="padding:1rem;">
+
+    {% set wd = ['Mo','Di','Mi','Do','Fr','Sa','So'] %}
+
+    <!-- Grid: 3 oben, 2 mittig darunter -->
+    <div class="journal-grid">
+      <!-- Row 1: Mo / Di / Mi -->
+      {% for d in week_days[:3] %}
+        {% set iso = d.isoformat() %}
+        {% set entries = entries_by_date.get(iso, []) %}
+        <div class="journal-tile">
+          <div class="tile-head">
+            <div class="tile-day">{{ wd[d.weekday()] }}</div>
+            <div class="tile-date">{{ d.strftime('%d.%m.%Y') }}</div>
+          </div>
+
+          {% if entries and entries|length > 0 %}
+            <ul class="tile-list">
+              {% for e in entries %}
+                <li class="tile-item">
+                  <div class="item-text">{{ e.content }}</div>
+                  <div class="item-meta">
+                    <span class="muted">{{ e.created_local[11:16] }}</span>
+                    <form method="POST" action="{{ url_for('journal_delete', entry_id=e.id) }}" class="inline-form" onsubmit="return confirm('Eintrag löschen?');">
+                      <button type="submit" class="chip-del" title="löschen">×</button>
+                    </form>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="tile-empty muted">Noch keine Einträge.</div>
+          {% endif %}
+
+          <!-- Formfelder auf app.py gemappt: entry_date + content -->
+          <form method="POST" action="{{ url_for('journal_add') }}" class="tile-form">
+            <input type="hidden" name="entry_date" value="{{ iso }}">
+            <input class="tile-input" name="content" type="text" placeholder="Stichpunkt hinzufügen…" required maxlength="500">
+            <button class="tile-add" type="submit">＋</button>
+          </form>
+        </div>
+      {% endfor %}
+
+      <!-- Row 2: (leere Platzhalterzelle), Do / Fr  -> zwei mittig darunter -->
+      <div class="journal-tile placeholder"></div>
+
+      {% for d in week_days[3:5] %}
+        {% set iso = d.isoformat() %}
+        {% set entries = entries_by_date.get(iso, []) %}
+        <div class="journal-tile">
+          <div class="tile-head">
+            <div class="tile-day">{{ wd[d.weekday()] }}</div>
+            <div class="tile-date">{{ d.strftime('%d.%m.%Y') }}</div>
+          </div>
+
+          {% if entries and entries|length > 0 %}
+            <ul class="tile-list">
+              {% for e in entries %}
+                <li class="tile-item">
+                  <div class="item-text">{{ e.content }}</div>
+                  <div class="item-meta">
+                    <span class="muted">{{ e.created_local[11:16] }}</span>
+                    <form method="POST" action="{{ url_for('journal_delete', entry_id=e.id) }}" class="inline-form" onsubmit="return confirm('Eintrag löschen?');">
+                      <button type="submit" class="chip-del" title="löschen">×</button>
+                    </form>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="tile-empty muted">Noch keine Einträge.</div>
+          {% endif %}
+
+          <form method="POST" action="{{ url_for('journal_add') }}" class="tile-form">
+            <input type="hidden" name="entry_date" value="{{ iso }}">
+            <input class="tile-input" name="content" type="text" placeholder="Stichpunkt hinzufügen…" required maxlength="500">
+            <button class="tile-add" type="submit">＋</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<style>
+  /* Container-Gitter: 3 Spalten oben; unten: 1 Platzhalter + 2 Tiles mittig */
+  .journal-grid{
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  .journal-tile{
+    border:1px solid #ddd;
+    border-radius:12px;
+    padding:.8rem;
+    display:flex;
+    flex-direction:column;
+    min-height: 260px; /* groß genug, Seite bleibt ohne Scroll auf Desktop */
+    background:#fff;
+  }
+  .journal-tile.placeholder{
+    opacity:0; pointer-events:none;
+  }
+  .tile-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:.4rem;
+  }
+  .tile-day{ font-weight:700; font-size:1.05rem; }
+  .tile-date{ color:#6b7280; font-size:.9rem; }
+
+  .tile-list{
+    list-style:none; padding-left:0; margin:.3rem 0 .6rem 0;
+    overflow:auto; flex:1 1 auto; /* list scrollt notfalls, Kachel bleibt fix */
+  }
+  .tile-item{
+    display:flex; align-items:flex-start; justify-content:space-between;
+    gap:.4rem; padding:.25rem .2rem; border-bottom:1px dashed #eee;
+  }
+  .item-text{ word-break:break-word; }
+  .item-meta{ display:flex; align-items:center; gap:.4rem; white-space:nowrap; }
+
+  .chip-del{
+    border:none; background:#eee; border-radius:8px; padding:.1rem .45rem;
+    line-height:1; cursor:pointer;
+  }
+  .chip-del:hover{ background:#e2e2e2; }
+
+  .tile-empty{ flex:1 1 auto; display:flex; align-items:center; justify-content:center; }
+
+  .tile-form{
+    display:flex; gap:.5rem; margin-top:.4rem;
+  }
+  .tile-input{
+    flex:1 1 auto; padding:.55rem .6rem; border-radius:8px; border:1px solid #ccc;
+  }
+  .tile-add{
+    padding:.55rem .8rem; border-radius:8px; border:1px solid #ccc; background:#f7f7f7; cursor:pointer;
+  }
+  .tile-add:hover{ background:#f0f0f0; }
+
+  /* Mobile Fallback: 1 Spalte */
+  @media (max-width: 900px){
+    .journal-grid{ grid-template-columns:1fr; }
+    .journal-tile.placeholder{ display:none; }
+    .journal-tile{ min-height: 220px; }
+  }
+</style>
+{% endblock %}
