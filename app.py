@@ -1,11 +1,9 @@
 from flask import Flask, request, redirect, url_for, render_template, session, make_response, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
-import sqlite3, os
+import sqlite3, os, csv, io, calendar
 from functools import wraps
-import calendar
 from datetime import date, datetime, timedelta, timezone
-import csv, io
 from zoneinfo import ZoneInfo
 
 # ---- Aktionen (DB-Keys + Anzeige-Labels) ----
@@ -25,11 +23,20 @@ ACTION_LABELS = {
     "päuschen": "Päuschen", "pause": "Päuschen",
     "mache weiter": "Mache weiter", "pausenende": "Mache weiter",
 }
-# ---------------------------------------------
 
 load_dotenv()
 
+# ---- Zeitzone: Europe/Berlin erzwingen (für SQLite localtime etc.) ----
+os.environ.setdefault("TZ", "Europe/Berlin")
+try:
+    import time as _time
+    _time.tzset()  # Unix (auch auf PythonAnywhere)
+except Exception:
+    pass
+# -----------------------------------------------------------------------
+
 app = Flask(__name__, instance_relative_config=True)
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-change-me")
 
 def _resolve_back_ep():
     for ep in ["admin_only", "admin_dashboard", "admin", "dashboard", "index"]:
@@ -37,7 +44,14 @@ def _resolve_back_ep():
             return ep
     return "index"
 
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-change-me")
+# ---- Session-Decorator (ersetzt login_required) ----
+def session_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login"))
+        return f(*args, **kwargs)
+    return wrapper
 
 # ensure instance dir exists (SQLite liegt dort)
 try:
@@ -48,7 +62,6 @@ except OSError:
 DB_PATH = os.path.join(app.instance_path, "users.db")
 
 def get_db():
-    # robuster gegen "database is locked"
     conn = sqlite3.connect(DB_PATH, timeout=15)
     conn.row_factory = sqlite3.Row
     try:
@@ -61,16 +74,19 @@ def get_db():
 def init_db():
     first_time = not os.path.exists(DB_PATH)
     conn = get_db()
-    # Users
+
+    # Users (mit weekly_minutes)
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
-            role TEXT NOT NULL CHECK(role IN ('admin','user'))
+            role TEXT NOT NULL CHECK(role IN ('admin','user')),
+            weekly_minutes INTEGER DEFAULT 2400
         )
     """)
-    # Journal (neu)
+
+    # Journal
     conn.execute("""
         CREATE TABLE IF NOT EXISTS journal_entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,44 +98,49 @@ def init_db():
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_journal_user_date ON journal_entries(user_id, entry_date)")
-    conn.commit()
 
-    # ---- Migration: weekly_minutes-Spalte sicherstellen ----
+    # Bookings
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS bookings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            action TEXT NOT NULL,
+            created_at TEXT NOT NULL,           -- UTC 'YYYY-MM-DD HH:MM:SS'
+            note TEXT,
+            needs_review INTEGER NOT NULL DEFAULT 0,
+            ticket_action TEXT,                 -- 'aendern' | 'loeschen' | 'blank' | NULL
+            ticket_message TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_bookings_user_created ON bookings(user_id, created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_bookings_review ON bookings(needs_review)")
+
+    # Migration: weekly_minutes sicherstellen (alte DBs)
     cols = [r["name"] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
     if "weekly_minutes" not in cols:
         conn.execute("ALTER TABLE users ADD COLUMN weekly_minutes INTEGER")
     conn.execute("UPDATE users SET weekly_minutes = COALESCE(weekly_minutes, 2400)")
     conn.commit()
 
+    # Seed nur bei frischer DB
     if first_time:
         seed = [
-            ("chef", generate_password_hash("secret123"), "admin"),
-            ("mimi", generate_password_hash("geheim123"), "user"),
+            ("chef", generate_password_hash("secret123"), "admin", 2400),
+            ("mimi", generate_password_hash("geheim123"), "user", 2400),
         ]
-        conn.executemany("INSERT INTO users (username, password_hash, role) VALUES (?,?,?)", seed)
-        conn.execute("UPDATE users SET weekly_minutes = 2400 WHERE weekly_minutes IS NULL")
+        conn.executemany(
+            "INSERT INTO users (username, password_hash, role, weekly_minutes) VALUES (?,?,?,?)",
+            seed
+        )
         conn.commit()
     conn.close()
 
-def login_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if "user_id" not in session:
-            return redirect(url_for("login"))
-        return f(*args, **kwargs)
-    return wrapper
-
-def role_required(*roles):
-    def decorator(f):
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            if "user_id" not in session:
-                return redirect(url_for("login"))
-            if session.get("role") not in roles:
-                return redirect(url_for("unauthorized"))
-            return f(*args, **kwargs)
-        return wrapper
-    return decorator
+# auch beim Import ausführen (WSGI)
+try:
+    init_db()
+except Exception as e:
+    print("init_db() failed:", e)
 
 # ---- PERIODEN-HELPER --------------------------------------------------------
 def _period_range_safe(period, anchor):
@@ -376,7 +397,7 @@ def admin_reports_export():
 
     today = date.today()
     raw_period = (request.args.get("period") or "month").lower()
-    effective_period = raw_period if raw_period in {"day","week","month","year"} else "month"  # <— fix
+    effective_period = raw_period if raw_period in {"day","week","month","year"} else "month"
 
     try:
         year = int(request.args.get("y", today.year))
@@ -516,7 +537,7 @@ def admin_reports_export():
     filename = f"report_{username}_{effective_period}_{start_dt.date()}_{end_dt.date()}{suffix}.csv"
     resp = make_response(csv_data)
     resp.headers["Content-Type"] = "text/csv; charset=utf-8"
-    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.headers["Content-Disposition"] = f'attachment; filename=\"{filename}\"'
     return resp
 # ---------- Ende: CSV-Export ----------
 
@@ -730,7 +751,6 @@ def admin_resolve(booking_id: int):
         return redirect(url_for("admin_only"))
 
     else:
-        # nur schließen: Blanko-Ticket (ticket_action='blank') löschen, sonst normal schließen
         row = cur.execute("SELECT ticket_action FROM bookings WHERE id = ?", (booking_id,)).fetchone()
         if row and (row["ticket_action"] or "") == "blank":
             cur.execute("DELETE FROM bookings WHERE id = ?", (booking_id,))
@@ -882,9 +902,6 @@ def logout():
     return redirect(url_for("login"))
 
 # --- Minimal-Route: /book ---
-import sqlite3
-from flask import request, session, redirect, url_for
-
 @app.post("/book", endpoint="book")
 def book():
     if "user_id" not in session:
@@ -1003,7 +1020,6 @@ def ticket_open_blank():
     ticket_msg = message + ((" | " + " · ".join(parts)) if parts else "")
 
     conn = get_db()
-    # Platzhalter-Buchung: erlaubte Aktion (z.B. 'mache weiter') + Marker ticket_action='blank'
     conn.execute("""
         INSERT INTO bookings (user_id, action, created_at, note, needs_review, ticket_action, ticket_message)
         VALUES (?, 'mache weiter', datetime('now'), '', 1, 'blank', ?)
@@ -1015,11 +1031,10 @@ def ticket_open_blank():
 
 # ---------------------- TAGEBUCH: Wochenansicht (User) -----------------------
 @app.get("/journal")
-@login_required
+@session_required
 def journal():
     """Wochenansicht Mo–Fr mit Einträgen des eingeloggten Users."""
     uid = session["user_id"]
-    # Ankerdatum aus query ?date=YYYY-MM-DD, default heute
     date_arg = request.args.get("date")
     try:
         anchor = datetime.strptime(date_arg, "%Y-%m-%d").date() if date_arg else date.today()
@@ -1049,15 +1064,14 @@ def journal():
     prev_week = (mon - timedelta(days=7)).isoformat()
     next_week = (mon + timedelta(days=7)).isoformat()
 
-    # Wochentitel (z.B. "30.12.2024 – 03.01.2025 · KW 1")
     kw = mon.isocalendar()[1]
     title_range = f"{mon.strftime('%d.%m.%Y')} – {fri.strftime('%d.%m.%Y')} · KW {kw}"
 
     return render_template(
         "journal.html",
         title="Tagebuch",
-        week_days=days,             # Liste von date-Objekten (Mo–Fr)
-        entries_by_date=by_date,    # dict[iso] -> rows
+        week_days=days,
+        entries_by_date=by_date,
         monday_iso=mon.isoformat(),
         prev_week_date=prev_week,
         next_week_date=next_week,
@@ -1065,7 +1079,7 @@ def journal():
     )
 
 @app.post("/journal/add")
-@login_required
+@session_required
 def journal_add():
     """Einen Stichpunkt für einen Tag (YYYY-MM-DD) hinzufügen."""
     uid = session["user_id"]
@@ -1073,7 +1087,6 @@ def journal_add():
     content = (request.form.get("content") or "").strip()
     if not entry_date:
         return ("Datum fehlt", 400)
-    # Validieren
     try:
         d = datetime.strptime(entry_date, "%Y-%m-%d").date()
     except ValueError:
@@ -1094,11 +1107,10 @@ def journal_add():
     return redirect(url_for("journal", date=_monday_of(d).isoformat()))
 
 @app.post("/journal/delete/<int:entry_id>")
-@login_required
+@session_required
 def journal_delete(entry_id: int):
     """Eigenen Tagebuch-Eintrag löschen."""
     uid = session["user_id"]
-    # Entry holen, um die Woche fürs Redirect zu kennen
     conn = get_db()
     row = conn.execute("SELECT entry_date FROM journal_entries WHERE id=? AND user_id=?", (entry_id, uid)).fetchone()
     if not row:
@@ -1131,13 +1143,11 @@ def admin_journal():
         conn.close()
         return render_template("admin_journal.html", title="Tagebuch (Admin)", users=[], uid=0, entries_by_date={}, week_days=[])
 
-    # Userauswahl
     try:
         uid = int(request.args.get("uid", users[0]["id"]))
     except (TypeError, ValueError):
         uid = users[0]["id"]
 
-    # Ankerdatum
     date_arg = request.args.get("date")
     try:
         anchor = datetime.strptime(date_arg, "%Y-%m-%d").date() if date_arg else date.today()
@@ -1201,7 +1211,6 @@ def admin_journal_export():
         conn.close()
         return ("uid fehlt/ungültig", 400)
 
-    # Ankerdatum
     date_arg = request.args.get("date")
     try:
         anchor = datetime.strptime(date_arg, "%Y-%m-%d").date() if date_arg else date.today()
@@ -1244,12 +1253,11 @@ def admin_journal_export():
     filename = f"journal_{username}_{mon.isoformat()}_{fri.isoformat()}.csv"
     resp = make_response(csv_data)
     resp.headers["Content-Type"] = "text/csv; charset=utf-8"
-    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.headers["Content-Disposition"] = f'attachment; filename=\"{filename}\"'
     return resp
 # ------------------- Ende Admin: Tagebuch ------------------------------------
 
 # ------------------- ADMIN: Benutzerverwaltung -------------------------------
-
 def _parse_minutes(v, default=2400):
     try:
         iv = int(str(v).strip())
@@ -1322,7 +1330,7 @@ def admin_users_update(user_id: int):
 
     new_role = (request.form.get("role") or "").strip()
     new_wm   = _parse_minutes(request.form.get("weekly_minutes", "2400"), 2400)
-    new_pw   = (request.form.get("password") or "").strip()  # Name passt zu deinem Template
+    new_pw   = (request.form.get("password") or "").strip()
 
     fields = []
     params = []
@@ -1423,43 +1431,18 @@ def compute_day_minutes(events):
     net = max(0, work - breaks - afk)
     return {"work": work, "breaks": breaks, "afk": afk, "net": net, "flags": flags}
 
-# --- Admin-Diagnose (read-only) ---
-import os, glob, sqlite3
-from functools import wraps
-from flask import abort, jsonify
-from flask_login import current_user, login_required
-
-def admin_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if not current_user.is_authenticated or getattr(current_user, "role", None) != "admin":
-            abort(403)
-        return f(*args, **kwargs)
-    return wrapper
-
-def _detect_db_path():
-    for key in ("DATABASE", "SQLALCHEMY_DATABASE_URI"):
-        val = getattr(globals().get("app", None), "config", {}).get(key) if "app" in globals() else None
-        if isinstance(val, str) and val:
-            if val.startswith("sqlite:///"):
-                return os.path.abspath(val.replace("sqlite:///", ""))
-            if val.startswith("sqlite://"):
-                return os.path.abspath(val.replace("sqlite://", ""))
-            if os.path.exists(val):
-                return os.path.abspath(val)
-    candidates = glob.glob(os.path.join("instance", "*.db")) + glob.glob("*.db")
-    return os.path.abspath(candidates[0]) if candidates else None
-
+# --- Admin-Diagnose (read-only, ohne flask_login) ---
 @app.route("/admin/diag")
-@login_required
-@admin_required
+@session_required
 def admin_diag():
-    db_path = _detect_db_path()
+    if session.get("role") != "admin":
+        return redirect(url_for("unauthorized"))
+
+    db_path = DB_PATH
     if not db_path or not os.path.exists(db_path):
         return jsonify({"db_path": db_path or "(keine gefunden)", "tables": [], "note": "Keine DB gefunden"}), 200
 
-    uri = f"file:{db_path}?mode=ro"
-    conn = sqlite3.connect(uri, uri=True)
+    conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
     tables = [r[0] for r in cur.fetchall()]

@@ -1,24 +1,28 @@
-﻿__pycache__/
+﻿# Bytecode / Cache
+__pycache__/
 *.py[cod]
-*.egg-info/
-dist/
-build/
 
-.venv/
-venv/
-ENV/
+# Virtualenvs
+.venv*/
+venv*/
 
+# Env/Secrets
 .env
 .env.*
-*.env
 
-/instance/*
-!/instance/.gitkeep
+# Instance: alles ignorieren, außer README und der Demo-DB
+instance/*
+!instance/README.md
+!instance/app.db
+
+# Sonstige DBs (außer der oben erlaubten)
+*.sqlite
+*.sqlite3
 *.db
+!instance/app.db
 
-.vscode/
-.idea/
-.DS_Store
-.pytest_cache/
-.cache/
+# Logs / lokale Helferlein
 *.log
+dateiliste.txt
+projektstruktur.txt
+settings.json
